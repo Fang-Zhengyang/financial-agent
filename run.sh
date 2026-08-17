@@ -9,14 +9,17 @@ if [ ! -d .venv ]; then
     exit 1
 fi
 
-# 加载 DeepSeek key：优先项目专属 .env（独立计费统计），回退 ~/.hermes/.env
+# 加载 DeepSeek key：优先项目专属 .env（独立计费统计），依次回退通用位置
+# （跨机器：不依赖 Hermes；~/.hermes/.env 仅作旧机器兼容）
 if [ -f "$(pwd)/.env" ]; then
     set -a; source "$(pwd)/.env"; set +a
+elif [ -f "$HOME/.config/finagent/.env" ]; then
+    set -a; source "$HOME/.config/finagent/.env"; set +a
 elif [ -f ~/.hermes/.env ]; then
     export $(grep DEEPSEEK ~/.hermes/.env | xargs)
 fi
 if [ -z "$DEEPSEEK_API_KEY" ]; then
-    echo "❌ 未找到 DEEPSEEK_API_KEY，请在 ~/.hermes/.env 添加"
+    echo "❌ 未找到 DEEPSEEK_API_KEY，请执行: echo 'DEEPSEEK_API_KEY=你的key' >> .env"
     exit 1
 fi
 
