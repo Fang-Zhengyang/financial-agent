@@ -201,3 +201,21 @@ Web 也提供 `GET /cache-stats` 接口返回同样的统计。
 - `architecture.md` — 技术方案 + ADR 决策记录
 - `research/` — 4 份调研报告（金融 Agent 全景 / TradingAgents 源码 / FinRobot 源码 / A股生态）
 - `test-reports/` — 验收与边界测试报告
+
+---
+
+## 八、Windows 安装程序分发（供其他电脑）
+
+**产物**：`dist/FinancialAgent-Setup.exe`（自包含 Python 运行时，目标电脑无需 WSL/Python）
+
+**目标电脑使用**：双击安装 → 选目录 → 勾选桌面快捷方式 → 完成 → 双击「金融Agent」→ 首次双击「配置Key.bat」输 DeepSeek key。
+
+**重新打包**（代码更新后）：
+
+```bash
+# WSL 内执行（需已装 nsis: sudo apt install nsis）
+cd /mnt/c/Users/70424/Desktop/financial-agent
+bash installer/build_installer.sh   # 重新收集文件 + 编译 → dist/FinancialAgent-Setup.exe
+```
+
+> 注意：依赖运行时（runtime/）已在 Windows 构建缓存（C:\FinAgentBuild），重新打包默认复用，仅当 requirements.txt 变化时才需重建运行时。
