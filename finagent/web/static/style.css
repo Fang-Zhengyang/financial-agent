@@ -1,0 +1,1286 @@
+/* ═══════════════════════════════════════════════════════
+   交易决策金融 Agent — Web 展示 CSS
+   暗色主题，专业金融风格，纯 CSS 无框架
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Reset & Base ─────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-card: #1c2333;
+  --bg-surface: #21262d;
+  --border: #30363d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --accent: #58a6ff;
+  --green: #3fb950;
+  --yellow: #d2991d;
+  --red: #f85149;
+  --orange: #f0883e;
+  --purple: #a371f7;
+  --teal: #39d353;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 0.85em;
+  background: var(--bg-surface);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+/* ── Header ───────────────────────────────────────────── */
+.header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.header-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.header-meta {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.meta-badge {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.meta-badge.placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Main Layout ──────────────────────────────────────── */
+.main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* ── Sections ─────────────────────────────────────────── */
+.section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-icon {
+  font-size: 1.2rem;
+}
+
+.section-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-weight: 400;
+}
+
+/* ── Empty State ──────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.empty-state p {
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.cmd-hint {
+  display: inline-block;
+  background: var(--bg-surface);
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+}
+
+/* ── Signal Cards ─────────────────────────────────────── */
+.signal-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.signal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.signal-card:hover {
+  border-color: var(--accent);
+}
+
+.signal-card.signal-buy {
+  border-color: var(--red);
+  box-shadow: 0 0 20px rgba(248, 81, 73, 0.08);
+}
+
+.signal-card.signal-hold {
+  border-color: var(--yellow);
+  box-shadow: 0 0 20px rgba(210, 153, 29, 0.08);
+}
+
+.signal-card.signal-sell {
+  border-color: var(--green);
+  box-shadow: 0 0 20px rgba(63, 185, 80, 0.08);
+}
+
+.card-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.card-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.signal-value {
+  color: var(--text-primary);
+}
+
+.signal-card.signal-buy .signal-value {
+  color: var(--red);
+}
+
+.signal-card.signal-hold .signal-value {
+  color: var(--yellow);
+}
+
+.signal-card.signal-sell .signal-value {
+  color: var(--green);
+}
+
+.tier-value {
+  color: var(--purple);
+}
+
+.confidence-value {
+  color: var(--teal);
+  text-transform: uppercase;
+}
+
+.shares-value {
+  color: var(--orange);
+}
+
+.card-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ── Decision Detail ──────────────────────────────────── */
+.decision-detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.detail-row {
+  background: var(--bg-surface);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.detail-value {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.stop-loss {
+  color: var(--red);
+}
+
+.target-price {
+  color: var(--green);
+}
+
+/* ── Executability ────────────────────────────────────── */
+.executability {
+  background: var(--bg-surface);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.exec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+}
+
+.exec-row + .exec-row {
+  border-top: 1px solid var(--border);
+}
+
+.exec-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.exec-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.exec-ok { color: var(--green); }
+.exec-warn { color: var(--red); }
+.exec-info { color: var(--accent); }
+
+/* ── Rationale & Risk ─────────────────────────────────── */
+.rationale,
+.risk-flags {
+  background: var(--bg-surface);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.rationale h3,
+.risk-flags h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.rationale p {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+
+.risk-flags ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.risk-flag-item {
+  background: rgba(248, 81, 73, 0.12);
+  color: var(--red);
+  border: 1px solid rgba(248, 81, 73, 0.25);
+  border-radius: 6px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* ── Report Content ───────────────────────────────────── */
+.report-content {
+  font-size: 0.95rem;
+  line-height: 1.8;
+}
+
+.report-content h1 {
+  font-size: 1.5rem;
+  margin: 1.5rem 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-content h2 {
+  font-size: 1.25rem;
+  margin: 1.25rem 0 0.5rem;
+  color: var(--accent);
+}
+
+.report-content h3 {
+  font-size: 1.1rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.report-content p {
+  margin-bottom: 0.75rem;
+}
+
+.report-content ul,
+.report-content ol {
+  margin: 0.5rem 0 0.75rem 1.5rem;
+}
+
+.report-content li {
+  margin-bottom: 0.25rem;
+}
+
+.report-content blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 0.75rem 0;
+  padding: 0.5rem 1rem;
+  background: var(--bg-surface);
+  border-radius: 0 6px 6px 0;
+  color: var(--text-secondary);
+}
+
+.report-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.report-content th,
+.report-content td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.report-content th {
+  background: var(--bg-surface);
+  font-weight: 600;
+}
+
+.report-content code {
+  font-size: 0.85em;
+}
+
+.report-content pre {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+
+.report-content pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.report-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5rem 0;
+}
+
+.report-content strong {
+  color: var(--text-primary);
+}
+
+/* ── Tables (Evidence & Memory) ───────────────────────── */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.evidence-table,
+.memory-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.evidence-table th,
+.evidence-table td,
+.memory-table th,
+.memory-table td {
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.evidence-table td.ev-conclusion,
+.memory-table td.mem-rationale {
+  white-space: normal;
+  min-width: 200px;
+}
+
+.evidence-table th,
+.memory-table th {
+  background: var(--bg-surface);
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  position: sticky;
+  top: 0;
+}
+
+.evidence-table tbody tr:hover,
+.memory-table tbody tr:hover {
+  background: var(--bg-surface);
+}
+
+.ev-id {
+  color: var(--accent);
+  font-family: monospace;
+  font-size: 0.82rem;
+}
+
+.ev-value {
+  font-weight: 600;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.ev-time {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+/* ── Memory Tags ──────────────────────────────────────── */
+.signal-tag {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.signal-tag-buy {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--red);
+}
+
+.signal-tag-hold {
+  background: rgba(210, 153, 29, 0.15);
+  color: var(--yellow);
+}
+
+.signal-tag-sell {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--green);
+}
+
+.status-pending {
+  color: var(--yellow);
+  font-size: 0.82rem;
+}
+
+.status-done {
+  color: var(--green);
+  font-size: 0.82rem;
+}
+
+.mem-date,
+.mem-code {
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+/* ── Placeholder ──────────────────────────────────────── */
+.placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 1rem 0;
+}
+
+/* ── Footer / Disclaimer ──────────────────────────────── */
+.disclaimer {
+  margin-top: 2rem;
+}
+
+.disclaimer-inner {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  text-align: center;
+}
+
+.disclaimer-inner h3 {
+  font-size: 1rem;
+  color: var(--yellow);
+  margin-bottom: 0.75rem;
+}
+
+.disclaimer-inner p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 0.5rem;
+}
+
+.disclaimer-sub {
+  font-size: 0.8rem !important;
+  color: var(--text-muted) !important;
+  opacity: 0.7;
+}
+
+/* ── Analyze Form ─────────────────────────────────────── */
+.analyze-panel {
+  border-color: rgba(88, 166, 255, 0.35);
+  background: linear-gradient(180deg, var(--bg-secondary), var(--bg-card));
+}
+
+.analyze-form .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-field label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.form-field .req {
+  color: var(--red);
+}
+
+.form-field input,
+.form-field select {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+.form-field input:disabled,
+.form-field select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #0d1117;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.form-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+/* ── Progress ─────────────────────────────────────────── */
+.analyze-progress {
+  margin-top: 1.25rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, var(--accent), var(--teal));
+  border-radius: 999px;
+  animation: progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+.progress-status {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+/* ── Alert ────────────────────────────────────────────── */
+.form-alert {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.form-alert.error {
+  background: rgba(248, 81, 73, 0.12);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  color: var(--red);
+}
+
+.form-alert.info {
+  background: rgba(210, 153, 29, 0.12);
+  border: 1px solid rgba(210, 153, 29, 0.3);
+  color: var(--yellow);
+}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .header {
+    padding: 1rem;
+  }
+  .main {
+    padding: 1rem;
+  }
+  .section {
+    padding: 1rem;
+  }
+  .signal-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .decision-detail {
+    grid-template-columns: 1fr;
+  }
+  .signal-card {
+    padding: 1rem;
+  }
+  .card-value {
+    font-size: 1.35rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .signal-cards {
+    grid-template-columns: 1fr;
+  }
+  .header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Web v2 迭代新增：报告折叠 / K线图 / 表单增强 / 完成提示
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Header 当前展示 ──────────────────────────────────── */
+.current-display {
+  color: var(--text-primary);
+  border-color: rgba(88, 166, 255, 0.4);
+  font-weight: 500;
+}
+
+/* ── 报告折叠标题栏 ───────────────────────────────────── */
+.report-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.85rem 1.25rem;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.report-toggle:hover {
+  border-color: var(--accent);
+  background: var(--bg-surface);
+}
+
+.report-toggle-icon {
+  font-size: 1.1rem;
+}
+
+.report-toggle-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-toggle-chevron {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.report-toggle.expanded .report-toggle-chevron {
+  transform: rotate(180deg);
+}
+
+.report-content {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ── K 线图 ───────────────────────────────────────────── */
+.chart-card {
+  width: 100%;
+  height: 480px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  /* 注意：不要设 overflow: hidden，否则会裁剪轴标签 */
+}
+
+.chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.kline-range {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* ── 表单字段即时校验提示 ─────────────────────────────── */
+.field-error {
+  font-size: 0.78rem;
+  color: var(--red);
+  min-height: 1rem;
+  line-height: 1.2;
+}
+
+.form-field input.invalid {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.12);
+}
+
+/* ── 完成提示条 ───────────────────────────────────────── */
+.toast {
+  position: fixed;
+  top: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: rgba(63, 185, 80, 0.16);
+  border: 1px solid rgba(63, 185, 80, 0.5);
+  color: var(--green);
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  animation: toast-in 0.25s ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ── 新分析完成闪烁 ───────────────────────────────────── */
+.flash {
+  animation: flash-bg 1.2s ease-in-out 2;
+}
+
+@keyframes flash-bg {
+  0% { border-color: var(--accent); box-shadow: 0 0 0 rgba(88, 166, 255, 0); }
+  50% { border-color: var(--accent); box-shadow: 0 0 24px rgba(88, 166, 255, 0.5); }
+  100% { border-color: var(--border); box-shadow: 0 0 0 rgba(88, 166, 255, 0); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Web v3 迭代新增：总分总分块报告 / 历史选择器 / 持有股数
+   ═══════════════════════════════════════════════════════ */
+
+/* ── 报告分块（总分总） ───────────────────────────────── */
+.report-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.report-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.report-block-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0.8rem 1.25rem;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.report-block-toggle:hover {
+  background: var(--bg-surface);
+}
+
+.report-block-icon {
+  font-size: 1rem;
+}
+
+.report-block-title {
+  flex: 1;
+}
+
+.report-block-chevron {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.report-block-toggle.expanded .report-block-chevron {
+  transform: rotate(180deg);
+}
+
+.report-block-content {
+  margin-top: 0;
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.report-block-content.is-collapsed {
+  display: none;
+}
+
+.report-block-summary {
+  border-color: rgba(88, 166, 255, 0.4);
+}
+
+.report-block-conclusion {
+  border-color: rgba(63, 185, 80, 0.4);
+}
+
+/* ── 历史分析选择器 ───────────────────────────────────── */
+.history-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.history-select {
+  flex: 1;
+  min-width: 260px;
+  max-width: 620px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.history-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Web v4 迭代新增：关键指标卡片 / 技术指标小图 / 资金流柱状图 / 文字样式增强
+   ═══════════════════════════════════════════════════════ */
+
+/* ── 关键指标卡片（基本面 + 估值） ─────────────────────── */
+.metric-group {
+  margin-bottom: 1.25rem;
+}
+
+.metric-group:last-child {
+  margin-bottom: 0;
+}
+
+.metric-group-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  letter-spacing: 0.02em;
+}
+
+.metric-group-icon {
+  font-size: 1rem;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.85rem;
+}
+
+.metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.95rem 1rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.metric-card:hover {
+  border-color: var(--accent);
+}
+
+.metric-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  margin-bottom: 0.45rem;
+}
+
+.metric-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: var(--text-primary);
+}
+
+.metric-value.metric-pos {
+  color: var(--red);
+}
+
+.metric-value.metric-neg {
+  color: var(--green);
+}
+
+.metric-value.metric-missing {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.metric-sub {
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* ── 技术指标快照 + RSI/MACD 小图 ─────────────────────── */
+.tech-snapshot {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.snap-cell {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.snap-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.snap-value {
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: var(--text-primary);
+}
+
+.mini-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.mini-chart {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.mini-chart-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0.1rem 0.35rem 0.5rem;
+}
+
+.mini-chart-box {
+  width: 100%;
+  height: 220px;
+}
+
+/* ── 资金流向柱状图 ───────────────────────────────────── */
+.fundflow-chart {
+  width: 100%;
+  height: 300px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.fundflow-summary {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.flow-pos {
+  color: var(--red);
+  font-weight: 700;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+.flow-neg {
+  color: var(--green);
+  font-weight: 700;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+.flow-missing {
+  color: var(--text-muted);
+}
+
+/* ── 报告正文文字样式增强 ─────────────────────────────── */
+.signal-word-buy {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.signal-word-sell {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.signal-word-hold {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.num-hl {
+  color: #f0c674;
+  font-weight: 700;
+}
+
+.num-pos {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.num-neg {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.report-content li.risk-item {
+  color: rgba(248, 81, 73, 0.95);
+}
+
+.report-content li.risk-item strong {
+  color: var(--red);
+}
+
+/* ── 报告分块标题醒目（色条） ─────────────────────────── */
+.report-block-toggle {
+  position: relative;
+  padding-left: 2.25rem;
+}
+
+.report-block-toggle::before {
+  content: '';
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 1.2em;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.report-block-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.report-block-summary .report-block-toggle::before {
+  background: var(--accent);
+}
+
+.report-block-module .report-block-toggle::before {
+  background: var(--purple);
+}
+
+.report-block-conclusion .report-block-toggle::before {
+  background: var(--yellow);
+}
+
+.report-block-appendix .report-block-toggle::before {
+  background: var(--text-muted);
+}
+
+/* 结论段落加粗强调 */
+.report-block-conclusion .report-content {
+  font-weight: 500;
+}
+
+.report-block-conclusion .report-content strong {
+  color: var(--accent);
+}
+
+/* ── 响应式 ───────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .mini-charts {
+    grid-template-columns: 1fr;
+  }
+  .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

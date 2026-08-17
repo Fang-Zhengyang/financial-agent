@@ -1,0 +1,13 @@
+akshare>=1.14.0
+baostock
+pandas
+numpy
+pydantic>=2.0
+pyyaml
+openai
+requests
+fastapi
+uvicorn
+python-multipart
+jinja2
+markdown

@@ -1,0 +1,151 @@
+{
+  "code": "000858",
+  "date": "2026-08-13",
+  "generated_at": "2026-08-13 14:56:53",
+  "items": [
+    {
+      "id": "ev_001",
+      "conclusion": "现价 75.22 元",
+      "source": "eastmoney",
+      "field": "price",
+      "timestamp": "2026-08-13T14:53:33.795550",
+      "function": "get_realtime_quote()",
+      "value": 75.22
+    },
+    {
+      "id": "ev_002",
+      "conclusion": "涨停 82.81 / 跌停 67.75",
+      "source": "eastmoney",
+      "field": "limit_up/limit_down",
+      "timestamp": "2026-08-13T14:53:33.795550",
+      "function": "compute_limit_price()",
+      "value": "82.81 / 67.75"
+    },
+    {
+      "id": "ev_003",
+      "conclusion": "最新收盘价 75.21 元",
+      "source": "akshare",
+      "field": "close",
+      "timestamp": "2026-08-13T14:53:33.769247",
+      "function": "get_kline()",
+      "value": 75.21
+    },
+    {
+      "id": "ev_004",
+      "conclusion": "最新成交量 301484 手",
+      "source": "akshare",
+      "field": "volume",
+      "timestamp": "2026-08-13T14:53:33.769247",
+      "function": "get_kline()",
+      "value": 301484
+    },
+    {
+      "id": "ev_005",
+      "conclusion": "最新涨跌幅 -0.09%",
+      "source": "akshare",
+      "field": "pct_chg",
+      "timestamp": "2026-08-13T14:53:33.769247",
+      "function": "get_kline()",
+      "value": -0.09
+    },
+    {
+      "id": "ev_006",
+      "conclusion": "ROE 0.070724%",
+      "source": "baostock",
+      "field": "roe",
+      "timestamp": "2026-08-13T14:53:35.647553",
+      "function": "get_financials()",
+      "value": 0.070724
+    },
+    {
+      "id": "ev_007",
+      "conclusion": "营收同比 0.009201%",
+      "source": "baostock",
+      "field": "revenue_yoy",
+      "timestamp": "2026-08-13T14:53:35.647553",
+      "function": "get_financials()",
+      "value": 0.009201
+    },
+    {
+      "id": "ev_008",
+      "conclusion": "净利同比 -0.719309%",
+      "source": "baostock",
+      "field": "net_profit_yoy",
+      "timestamp": "2026-08-13T14:53:35.647553",
+      "function": "get_financials()",
+      "value": -0.719309
+    },
+    {
+      "id": "ev_009",
+      "conclusion": "毛利率 0.775418%",
+      "source": "baostock",
+      "field": "gross_margin",
+      "timestamp": "2026-08-13T14:53:35.647553",
+      "function": "get_financials()",
+      "value": 0.775418
+    },
+    {
+      "id": "ev_010",
+      "conclusion": "负债率 0.356891%",
+      "source": "baostock",
+      "field": "debt_ratio",
+      "timestamp": "2026-08-13T14:53:35.647553",
+      "function": "get_financials()",
+      "value": 0.356891
+    },
+    {
+      "id": "ev_011",
+      "conclusion": "EPS 2.306842%",
+      "source": "baostock",
+      "field": "eps",
+      "timestamp": "2026-08-13T14:53:35.647553",
+      "function": "get_financials()",
+      "value": 2.306842
+    },
+    {
+      "id": "ev_012",
+      "conclusion": "PE 9.05",
+      "source": "akshare",
+      "field": "pe",
+      "timestamp": "2026-08-13T14:53:35.670967",
+      "function": "get_valuation()",
+      "value": 9.05
+    },
+    {
+      "id": "ev_013",
+      "conclusion": "PB 2.47",
+      "source": "akshare",
+      "field": "pb",
+      "timestamp": "2026-08-13T14:53:35.670967",
+      "function": "get_valuation()",
+      "value": 2.47
+    },
+    {
+      "id": "ev_014",
+      "conclusion": "股息率 0.0%",
+      "source": "akshare",
+      "field": "dividend_yield",
+      "timestamp": "2026-08-13T14:53:35.670967",
+      "function": "get_valuation()",
+      "value": 0.0
+    },
+    {
+      "id": "ev_015",
+      "conclusion": "总市值 2920.13370216 亿元",
+      "source": "akshare",
+      "field": "market_cap",
+      "timestamp": "2026-08-13T14:53:35.670967",
+      "function": "get_valuation()",
+      "value": 2920.13370216
+    },
+    {
+      "id": "ev_016",
+      "conclusion": "ST 状态 is_st=False, is_star_st=False",
+      "source": "akshare",
+      "field": "is_st/is_star_st",
+      "timestamp": "2026-08-13T14:53:35.759753",
+      "function": "get_st_risk()",
+      "value": "ST=False, *ST=False"
+    }
+  ]
+}

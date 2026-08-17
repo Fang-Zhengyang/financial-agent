@@ -1,0 +1,242 @@
+{
+  "code": "601318",
+  "capital": 9000.0,
+  "position_status": "none",
+  "started_at": "2026-08-13T14:43:56.184463",
+  "finished_at": "2026-08-13T14:47:37.203065",
+  "total_duration_ms": 203281.92,
+  "total_cost_rmb": 0.529592,
+  "total_input_tokens": 103036,
+  "total_output_tokens": 24477,
+  "steps": [
+    {
+      "step": 1,
+      "name": "输入校验",
+      "status": "ok",
+      "duration_ms": 19.76,
+      "details": {}
+    },
+    {
+      "step": 2,
+      "name": "数据就绪",
+      "status": "ok",
+      "duration_ms": 692.55,
+      "details": {}
+    },
+    {
+      "step": 3,
+      "name": "4分析师",
+      "status": "ok",
+      "duration_ms": 38690.37,
+      "details": {}
+    },
+    {
+      "step": 4,
+      "name": "多空辩论",
+      "status": "ok",
+      "duration_ms": 37328.5,
+      "details": {}
+    },
+    {
+      "step": 5,
+      "name": "研究经理",
+      "status": "ok",
+      "duration_ms": 44005.97,
+      "details": {}
+    },
+    {
+      "step": 6,
+      "name": "交易员",
+      "status": "ok",
+      "duration_ms": 3716.78,
+      "details": {}
+    },
+    {
+      "step": 7,
+      "name": "风控讨论",
+      "status": "ok",
+      "duration_ms": 55447.28,
+      "details": {}
+    },
+    {
+      "step": 8,
+      "name": "决策经理",
+      "status": "ok",
+      "duration_ms": 23376.57,
+      "details": {}
+    },
+    {
+      "step": 9,
+      "name": "规则复核",
+      "status": "ok",
+      "duration_ms": 0.11,
+      "details": {}
+    },
+    {
+      "step": 10,
+      "name": "记忆写入",
+      "status": "ok",
+      "duration_ms": 4.01,
+      "details": {}
+    }
+  ],
+  "token_stats": [
+    {
+      "model": "fundamentals(deepseek-chat)",
+      "input_tokens": 2878,
+      "output_tokens": 1160,
+      "reasoning_tokens": 0,
+      "total_tokens": 4038,
+      "cost_rmb": 0.015036
+    },
+    {
+      "model": "technical(deepseek-chat)",
+      "input_tokens": 14446,
+      "output_tokens": 2048,
+      "reasoning_tokens": 0,
+      "total_tokens": 16494,
+      "cost_rmb": 0.045276
+    },
+    {
+      "model": "news(deepseek-chat)",
+      "input_tokens": 13106,
+      "output_tokens": 1092,
+      "reasoning_tokens": 0,
+      "total_tokens": 14198,
+      "cost_rmb": 0.034948
+    },
+    {
+      "model": "capital_flow(deepseek-chat)",
+      "input_tokens": 2728,
+      "output_tokens": 1093,
+      "reasoning_tokens": 0,
+      "total_tokens": 3821,
+      "cost_rmb": 0.0142
+    },
+    {
+      "model": "bull(deepseek-chat)",
+      "input_tokens": 2407,
+      "output_tokens": 1025,
+      "reasoning_tokens": 0,
+      "total_tokens": 3432,
+      "cost_rmb": 0.013014
+    },
+    {
+      "model": "bear(deepseek-chat)",
+      "input_tokens": 3498,
+      "output_tokens": 1024,
+      "reasoning_tokens": 0,
+      "total_tokens": 4522,
+      "cost_rmb": 0.015188
+    },
+    {
+      "model": "bull(deepseek-chat)",
+      "input_tokens": 3044,
+      "output_tokens": 1024,
+      "reasoning_tokens": 0,
+      "total_tokens": 4068,
+      "cost_rmb": 0.01428
+    },
+    {
+      "model": "bear(deepseek-chat)",
+      "input_tokens": 4121,
+      "output_tokens": 1024,
+      "reasoning_tokens": 0,
+      "total_tokens": 5145,
+      "cost_rmb": 0.016434
+    },
+    {
+      "model": "research_manager(deepseek-reasoner)",
+      "input_tokens": 18104,
+      "output_tokens": 5351,
+      "reasoning_tokens": 0,
+      "total_tokens": 23455,
+      "cost_rmb": 0.158032
+    },
+    {
+      "model": "trader(deepseek-chat)",
+      "input_tokens": 5374,
+      "output_tokens": 416,
+      "reasoning_tokens": 0,
+      "total_tokens": 5790,
+      "cost_rmb": 0.014076
+    },
+    {
+      "model": "risk_aggressive(deepseek-chat)",
+      "input_tokens": 2749,
+      "output_tokens": 1024,
+      "reasoning_tokens": 0,
+      "total_tokens": 3773,
+      "cost_rmb": 0.01369
+    },
+    {
+      "model": "risk_conservative(deepseek-chat)",
+      "input_tokens": 3068,
+      "output_tokens": 1024,
+      "reasoning_tokens": 0,
+      "total_tokens": 4092,
+      "cost_rmb": 0.014328
+    },
+    {
+      "model": "risk_neutral(deepseek-chat)",
+      "input_tokens": 3400,
+      "output_tokens": 1024,
+      "reasoning_tokens": 0,
+      "total_tokens": 4424,
+      "cost_rmb": 0.014992
+    },
+    {
+      "model": "risk_aggressive(deepseek-chat)",
+      "input_tokens": 3691,
+      "output_tokens": 1024,
+      "reasoning_tokens": 0,
+      "total_tokens": 4715,
+      "cost_rmb": 0.015574
+    },
+    {
+      "model": "risk_conservative(deepseek-chat)",
+      "input_tokens": 4030,
+      "output_tokens": 1024,
+      "reasoning_tokens": 0,
+      "total_tokens": 5054,
+      "cost_rmb": 0.016252
+    },
+    {
+      "model": "risk_neutral(deepseek-chat)",
+      "input_tokens": 4356,
+      "output_tokens": 1023,
+      "reasoning_tokens": 0,
+      "total_tokens": 5379,
+      "cost_rmb": 0.016896
+    },
+    {
+      "model": "portfolio_manager(deepseek-reasoner)",
+      "input_tokens": 12036,
+      "output_tokens": 3077,
+      "reasoning_tokens": 0,
+      "total_tokens": 15113,
+      "cost_rmb": 0.097376
+    }
+  ],
+  "cache_stats": {
+    "hits": 16,
+    "misses": 5,
+    "hit_rate": 0.762,
+    "detail": {
+      "st_risk": "hit",
+      "kline": "hit",
+      "realtime_quote_eastmoney": "hit",
+      "capital_flow_eastmoney": "miss",
+      "capital_flow": "miss",
+      "margin_trading": "hit",
+      "financials": "hit",
+      "valuation": "hit",
+      "news": "hit",
+      "announcement_eastmoney": "hit",
+      "trade_calendar": "miss"
+    }
+  },
+  "degradations": [],
+  "corrections": [],
+  "errors": []
+}

@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易决策金融 Agent — 分析报告</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+<body data-code="{{ analysis_info.code if analysis_info else '' }}"
+      data-date="{{ analysis_info.date if analysis_info else '' }}">
+    <!-- ═══ 顶部导航栏 ═══ -->
+    <header class="header">
+        <div class="header-inner">
+            <h1 class="header-title">
+                📊 交易决策金融 Agent
+            </h1>
+            <div class="header-meta">
+                {% if has_analysis and analysis_info %}
+                <span class="meta-badge current-display">
+                    当前显示: {{ analysis_info.name }}({{ analysis_info.code }}) · {{ analysis_info.date }}{% if analysis_info.finished_at %} · {{ analysis_info.finished_at }}{% endif %}
+                </span>
+                {% else %}
+                <span class="meta-badge placeholder">暂无分析数据</span>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- 新分析完成提示条（JS 动态显示） -->
+    <div id="toast" class="toast" hidden></div>
+
+    <main class="main">
+        <!-- ═══ 内置分析表单（顶部区域） ═══ -->
+        <section class="section analyze-panel" id="section-analyze">
+            <h2 class="section-title">
+                <span class="section-icon">🔍</span> 发起新分析
+            </h2>
+            <form id="analyze-form" class="analyze-form" novalidate>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="f-code">股票代码 <span class="req">*</span></label>
+                        <input type="text" id="f-code" name="code" placeholder="如 600519"
+                               maxlength="6" required autocomplete="off" inputmode="numeric">
+                        <span class="field-error" id="code-error"></span>
+                    </div>
+                    <div class="form-field">
+                        <label for="f-capital">资金（元）</label>
+                        <input type="number" id="f-capital" name="capital" value="9000" min="0" step="0.01">
+                        <span class="field-error" id="capital-error"></span>
+                    </div>
+                    <div class="form-field">
+                        <label for="f-position">持仓状态</label>
+                        <select id="f-position" name="position_status">
+                            <option value="none">空仓（none）</option>
+                            <option value="holding">已持仓（holding）</option>
+                        </select>
+                    </div>
+                    <div class="form-field" id="cost-price-field" hidden>
+                        <label for="f-cost-price">成本价（元）</label>
+                        <input type="number" id="f-cost-price" name="cost_price" min="0" step="0.001" placeholder="如 1300.000">
+                        <span class="field-error" id="cost-price-error"></span>
+                    </div>
+                    <div class="form-field" id="shares-field" hidden>
+                        <label for="f-shares">持有股数</label>
+                        <input type="number" id="f-shares" name="shares" min="1" step="1" placeholder="如 100">
+                        <span class="field-error" id="shares-error"></span>
+                    </div>
+                    <div class="form-field">
+                        <label for="f-debate">辩论轮次</label>
+                        <select id="f-debate" name="debate_rounds">
+                            <option value="1">1 轮</option>
+                            <option value="2" selected>2 轮</option>
+                            <option value="3">3 轮</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="f-risk">风控轮次</label>
+                        <select id="f-risk" name="risk_rounds">
+                            <option value="1">1 轮</option>
+                            <option value="2" selected>2 轮</option>
+                            <option value="3">3 轮</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" id="analyze-btn" class="btn btn-primary">开始分析</button>
+                    <span class="form-hint">提交后在后台运行，约 3-5 分钟完成，全程无需操作终端</span>
+                </div>
+            </form>
+
+            <!-- 进度条 / 状态提示 -->
+            <div id="analyze-progress" class="analyze-progress" hidden>
+                <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+                <div class="progress-status" id="progress-status">正在分析…</div>
+            </div>
+            <div id="analyze-alert" class="form-alert" hidden></div>
+        </section>
+
+        {% if history %}
+        <!-- ═══ 历史分析选择器 ═══ -->
+        <section class="section" id="section-history">
+            <h2 class="section-title">
+                <span class="section-icon">🗂️</span> 历史分析
+                <span class="section-count">{{ history | length }} 次</span>
+            </h2>
+            <div class="history-bar">
+                <select id="history-select" class="history-select" aria-label="选择历史分析">
+                    {% for item in history %}
+                    <option value="{{ item.code }}|{{ item.date }}"
+                        {% if analysis_info and analysis_info.code == item.code and analysis_info.date == item.date %}selected{% endif %}>
+                        {{ item.name }}({{ item.code }}) · {{ item.date }} · {{ item.finished_at }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <span class="form-hint">选择后切换展示对应报告 / K 线 / 信号</span>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if not has_analysis %}
+        <!-- ═══ 无数据提示 ═══ -->
+        <section class="section empty-state">
+            <div class="empty-icon">📭</div>
+            <h2>暂无分析数据</h2>
+            <p>运行一次分析后，结果将在此显示。</p>
+            <code class="cmd-hint">python -m finagent.cli analyze --code &lt;代码&gt; --capital 9000</code>
+        </section>
+        {% endif %}
+
+        <!-- ═══ 第 1 区：信号与仓位卡片 ═══ -->
+        {% if decision %}
+        <section class="section" id="section-signal">
+            <h2 class="section-title">
+                <span class="section-icon">🎯</span> 交易信号
+            </h2>
+            <div class="signal-cards">
+                <!-- 信号卡片 -->
+                <div class="signal-card {{ signal_class }}">
+                    <div class="card-label">信号</div>
+                    <div class="card-value signal-value">{{ signal_label }}</div>
+                    <div class="card-sub">{{ decision.signal.value }}</div>
+                </div>
+
+                <!-- 仓位卡片 -->
+                <div class="signal-card">
+                    <div class="card-label">仓位档位</div>
+                    <div class="card-value tier-value">档位 {{ decision.position_tier.value }}</div>
+                    <div class="card-sub">{{ tier_label }}</div>
+                </div>
+
+                <!-- 置信度卡片 -->
+                <div class="signal-card">
+                    <div class="card-label">置信度</div>
+                    <div class="card-value confidence-value">{{ decision.confidence.value }}</div>
+                    <div class="card-sub">
+                        {% if decision.confidence.value == 'high' %}高置信度
+                        {% elif decision.confidence.value == 'medium' %}中等置信度
+                        {% else %}低置信度{% endif %}
+                    </div>
+                </div>
+
+                <!-- 建议股数卡片 -->
+                <div class="signal-card">
+                    <div class="card-label">建议股数</div>
+                    <div class="card-value shares-value">{{ decision.suggested_shares }}</div>
+                    <div class="card-sub">股（100 整数倍）</div>
+                </div>
+            </div>
+
+            <!-- 决策详情 -->
+            <div class="decision-detail">
+                <div class="detail-row">
+                    <span class="detail-label">建议价格区间</span>
+                    <span class="detail-value">{{ decision.suggested_price_range[0] or '—' }} ~ {{ decision.suggested_price_range[1] or '—' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">止损位</span>
+                    <span class="detail-value stop-loss">{{ decision.stop_loss or '—' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">目标价位</span>
+                    <span class="detail-value target-price">{{ decision.target or '—' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">仓位占比</span>
+                    <span class="detail-value">{{ "%.0f%%" | format(decision.position_pct * 100) }}</span>
+                </div>
+            </div>
+
+            <!-- 可执行性标注 -->
+            <div class="executability">
+                <div class="exec-row">
+                    <span class="exec-label">涨停限制</span>
+                    <span class="exec-value {% if decision.executability.limit_up %}exec-warn{% else %}exec-ok{% endif %}">
+                        {% if decision.executability.limit_up %}⚠ 涨停 — 可能无法买入{% else %}✅ 正常{% endif %}
+                    </span>
+                </div>
+                <div class="exec-row">
+                    <span class="exec-label">跌停限制</span>
+                    <span class="exec-value {% if decision.executability.limit_down %}exec-warn{% else %}exec-ok{% endif %}">
+                        {% if decision.executability.limit_down %}⚠ 跌停 — 可能无法卖出{% else %}✅ 正常{% endif %}
+                    </span>
+                </div>
+                <div class="exec-row">
+                    <span class="exec-label">T+1 说明</span>
+                    <span class="exec-value exec-info">{{ decision.executability.t_plus1_note or 'T 日买入，T+1 日方可卖出' }}</span>
+                </div>
+            </div>
+
+            <!-- 决策理由 -->
+            {% if decision.rationale %}
+            <div class="rationale">
+                <h3>📝 决策理由</h3>
+                <p>{{ decision.rationale }}</p>
+            </div>
+            {% endif %}
+
+            <!-- 风险标记 -->
+            {% if decision.risk_flags %}
+            <div class="risk-flags">
+                <h3>🚩 风险标记</h3>
+                <ul>
+                    {% for flag in decision.risk_flags %}
+                    <li class="risk-flag-item">{{ flag }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <!-- ═══ 关键指标（基本面 + 估值卡片） ═══ -->
+        {% if has_analysis %}
+        <section class="section" id="section-metrics">
+            <h2 class="section-title">
+                <span class="section-icon">📊</span> 关键指标
+                <span class="section-count" id="metrics-code">{{ analysis_info.code }}</span>
+            </h2>
+            <div class="metric-group">
+                <h3 class="metric-group-title"><span class="metric-group-icon">🏢</span>基本面</h3>
+                <div class="metric-grid" id="fundamentals-grid"></div>
+            </div>
+            <div class="metric-group">
+                <h3 class="metric-group-title"><span class="metric-group-icon">💎</span>估值</h3>
+                <div class="metric-grid" id="valuation-grid"></div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- ═══ 信息栏：K 线图 ═══ -->
+        {% if has_analysis %}
+        <section class="section" id="section-kline">
+            <h2 class="section-title">
+                <span class="section-icon">📈</span> K 线图
+                <span class="section-count" id="kline-code">{{ analysis_info.code }}</span>
+            </h2>
+            <div id="kline-chart" class="chart-card"></div>
+            <div id="kline-range" class="kline-range"></div>
+        </section>
+        {% endif %}
+
+        <!-- ═══ 技术指标（RSI + MACD 小图） ═══ -->
+        {% if has_analysis %}
+        <section class="section" id="section-tech">
+            <h2 class="section-title">
+                <span class="section-icon">📉</span> 技术指标
+            </h2>
+            <div id="tech-snapshot" class="tech-snapshot"></div>
+            <div class="mini-charts">
+                <div class="mini-chart">
+                    <div class="mini-chart-title">RSI(14)</div>
+                    <div id="rsi-chart" class="mini-chart-box"></div>
+                </div>
+                <div class="mini-chart">
+                    <div class="mini-chart-title">MACD</div>
+                    <div id="macd-chart" class="mini-chart-box"></div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- ═══ 资金流向（近20日主力净流入柱状图） ═══ -->
+        {% if has_analysis %}
+        <section class="section" id="section-fundflow">
+            <h2 class="section-title">
+                <span class="section-icon">💰</span> 资金流向
+                <span class="section-count">近20日主力净流入</span>
+            </h2>
+            <div id="fundflow-chart" class="fundflow-chart"></div>
+            <div id="fundflow-summary" class="fundflow-summary"></div>
+        </section>
+        {% endif %}
+
+        <!-- ═══ 第 2 区：研究报告（总分总分块，每块可折叠） ═══ -->
+        {% if has_analysis and report_blocks %}
+        <section class="section" id="section-report">
+            <h2 class="section-title">
+                <span class="section-icon">📄</span> 研究报告
+                <span class="section-count">{{ analysis_info.name }} {{ analysis_info.code }} · {{ analysis_info.date }}</span>
+            </h2>
+            <div class="report-blocks">
+                {% for block in report_blocks %}
+                <div class="report-block report-block-{{ block.kind }}" data-open="{{ '1' if block.open else '0' }}">
+                    <button type="button" class="report-block-toggle" aria-expanded="{{ 'true' if block.open else 'false' }}">
+                        <span class="report-block-icon">{{ block.icon }}</span>
+                        <span class="report-block-title">{{ block.title }}</span>
+                        <span class="report-block-chevron" aria-hidden="true">▾</span>
+                    </button>
+                    <div class="report-content report-block-content{% if not block.open %} is-collapsed{% endif %}">
+                        {{ block.html | safe }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- ═══ 第 3 区：证据链表格 ═══ -->
+        {% if evidence and evidence.items %}
+        <section class="section" id="section-evidence">
+            <h2 class="section-title">
+                <span class="section-icon">🔗</span> 证据链
+                <span class="section-count">{{ evidence.items | length }} 条</span>
+            </h2>
+            <div class="table-wrap">
+                <table class="evidence-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>结论</th>
+                            <th>数据源</th>
+                            <th>字段</th>
+                            <th>时间</th>
+                            <th>计算函数</th>
+                            <th>值</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in evidence.items %}
+                        <tr>
+                            <td class="ev-id">{{ item.id }}</td>
+                            <td class="ev-conclusion">{{ item.conclusion }}</td>
+                            <td>{{ item.source }}</td>
+                            <td><code>{{ item.field }}</code></td>
+                            <td class="ev-time">{{ item.timestamp }}</td>
+                            <td><code>{{ item.function or '—' }}</code></td>
+                            <td class="ev-value">{{ item.value }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% elif has_analysis %}
+        <section class="section" id="section-evidence">
+            <h2 class="section-title">
+                <span class="section-icon">🔗</span> 证据链
+            </h2>
+            <p class="placeholder">暂无证据链数据。</p>
+        </section>
+        {% endif %}
+
+        <!-- ═══ 第 4 区：记忆日志 ═══ -->
+        <section class="section" id="section-memory">
+            <h2 class="section-title">
+                <span class="section-icon">📝</span> 记忆日志
+                <span class="section-count">最近 {{ memory_entries | length }} 条</span>
+            </h2>
+            {% if memory_entries %}
+            <div class="table-wrap">
+                <table class="memory-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>代码</th>
+                            <th>信号</th>
+                            <th>仓位</th>
+                            <th>状态</th>
+                            <th>决策理由</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in memory_entries %}
+                        <tr>
+                            <td class="mem-date">{{ entry.date }}</td>
+                            <td class="mem-code">{{ entry.code }}</td>
+                            <td>
+                                <span class="signal-tag signal-tag-{{ entry.signal | lower }}">{{ entry.signal }}</span>
+                            </td>
+                            <td>档位 {{ entry.position_tier }}</td>
+                            <td>
+                                {% if entry.status == 'pending' %}
+                                <span class="status-pending">⏳ {{ entry.status }}</span>
+                                {% else %}
+                                <span class="status-done">{{ entry.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="mem-rationale">{{ entry.rationale | truncate(80) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="placeholder">暂无记忆日志。运行分析后将自动记录。</p>
+            {% endif %}
+        </section>
+
+        <!-- ═══ 免责声明 ═══ -->
+        <footer class="disclaimer">
+            <div class="disclaimer-inner">
+                <h3>⚠️ 免责声明</h3>
+                <p>
+                    本系统为辅助分析工具，所有输出的信号、仓位建议和报告仅供学习与研究参考，
+                    <strong>不构成任何投资建议</strong>。
+                    股市有风险，投资需谨慎。请用户根据自身情况独立做出投资决策，
+                    系统开发者与维护方不对任何投资损失承担责任。
+                </p>
+                <p class="disclaimer-sub">
+                    本系统不自动下单，不接入券商 API，所有交易行为需用户人工执行。
+                    历史分析结果不代表未来表现。
+                </p>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var STORAGE_KEY = 'finagent.form.params';
+        var COMPLETED_KEY = 'finagent.justCompleted';
+
+        /* ── 工具函数 ─────────────────────────────────────── */
+
+        function $(id) { return document.getElementById(id); }
+
+        function currentCode() {
+            return document.body.getAttribute('data-code') || '';
+        }
+
+        function readJustCompleted() {
+            try {
+                var raw = sessionStorage.getItem(COMPLETED_KEY);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) { return null; }
+        }
+
+        function clearJustCompleted() {
+            try { sessionStorage.removeItem(COMPLETED_KEY); } catch (e) {}
+        }
+
+        function showToast(text) {
+            var toast = $('toast');
+            if (!toast) return;
+            toast.textContent = text;
+            toast.hidden = false;
+            if (toast._timer) clearTimeout(toast._timer);
+            toast._timer = setTimeout(function () { toast.hidden = true; }, 6000);
+        }
+
+        function flashElement(el) {
+            if (!el) return;
+            el.classList.remove('flash');
+            void el.offsetWidth; // 强制重排以重启动画
+            el.classList.add('flash');
+        }
+
+        /* ── 金额/股数校验 ───────────────────────────────── */
+
+        function validateMoney(str, label, allowEmpty, decimals) {
+            if (str === '' || str === undefined || str === null) {
+                return allowEmpty ? null : (label + '不能为空');
+            }
+            var num = Number(str);
+            if (isNaN(num)) return label + '必须为数字';
+            if (num <= 0) return label + '必须为正数';
+            var d = (decimals === undefined) ? 2 : decimals;
+            var scaled = num * Math.pow(10, d);
+            var unit = (d === 3) ? '三' : '两';
+            if (Math.abs(scaled - Math.round(scaled)) > 1e-6) return label + '最多' + unit + '位小数';
+            return null;
+        }
+
+        function validateShares(str, label, allowEmpty) {
+            if (str === '' || str === undefined || str === null) {
+                return allowEmpty ? null : (label + '不能为空');
+            }
+            var num = Number(str);
+            if (isNaN(num)) return label + '必须为整数';
+            if (!Number.isInteger(num) || num <= 0) return label + '必须为正整数';
+            return null;
+        }
+
+        /* ── 表单：参数持久化 + 校验 + 提交 ────────────────── */
+
+        function initForm() {
+            var form = $('analyze-form');
+            var btn = $('analyze-btn');
+            var progress = $('analyze-progress');
+            var progressStatus = $('progress-status');
+            var alertBox = $('analyze-alert');
+            var codeInput = $('f-code');
+            var capitalInput = $('f-capital');
+            var positionSelect = $('f-position');
+            var costField = $('cost-price-field');
+            var costInput = $('f-cost-price');
+            var sharesField = $('shares-field');
+            var sharesInput = $('f-shares');
+            var debateSelect = $('f-debate');
+            var riskSelect = $('f-risk');
+            var fields = form.querySelectorAll('input, select, button');
+            var pollTimer = null;
+
+            function setLoading(loading) {
+                fields.forEach(function (el) { el.disabled = loading; });
+                btn.disabled = loading;
+                btn.textContent = loading ? '分析中…' : '开始分析';
+            }
+
+            function showAlert(message, kind) {
+                alertBox.hidden = false;
+                alertBox.textContent = message;
+                alertBox.className = 'form-alert ' + (kind || 'error');
+            }
+
+            function hideAlert() {
+                alertBox.hidden = true;
+                alertBox.textContent = '';
+            }
+
+            function showProgress(text) {
+                progress.hidden = false;
+                progressStatus.textContent = text;
+            }
+
+            function hideProgress() {
+                progress.hidden = true;
+            }
+
+            function stopPolling() {
+                if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+            }
+
+            function fieldError(input, msg) {
+                input.classList.toggle('invalid', !!msg);
+                var err = input.parentElement.querySelector('.field-error');
+                if (err) err.textContent = msg || '';
+            }
+
+            function clearAllFieldErrors() {
+                form.querySelectorAll('.field-error').forEach(function (el) { el.textContent = ''; });
+                form.querySelectorAll('input.invalid').forEach(function (el) { el.classList.remove('invalid'); });
+            }
+
+            /* 成本价 + 持有股数输入栏：holding 时显示 */
+            function syncHoldingVisibility() {
+                var holding = positionSelect.value === 'holding';
+                costField.hidden = !holding;
+                sharesField.hidden = !holding;
+                if (!holding) {
+                    costInput.value = '';
+                    fieldError(costInput, '');
+                    sharesInput.value = '';
+                    fieldError(sharesInput, '');
+                }
+            }
+
+            /* 参数持久化 */
+            function saveParams() {
+                var params = {
+                    code: codeInput.value.trim(),
+                    capital: capitalInput.value,
+                    position_status: positionSelect.value,
+                    cost_price: costInput.value,
+                    shares: sharesInput.value,
+                    debate_rounds: debateSelect.value,
+                    risk_rounds: riskSelect.value,
+                };
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(params)); } catch (e) {}
+            }
+
+            function restoreParams() {
+                var raw;
+                try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { raw = null; }
+                if (!raw) return;
+                var p;
+                try { p = JSON.parse(raw); } catch (e) { return; }
+                if (!p || typeof p !== 'object') return;
+                if (p.code) codeInput.value = p.code;
+                if (p.capital !== undefined && p.capital !== '') capitalInput.value = p.capital;
+                if (p.position_status === 'holding' || p.position_status === 'none') positionSelect.value = p.position_status;
+                if (p.cost_price !== undefined && p.cost_price !== '') costInput.value = p.cost_price;
+                if (p.shares !== undefined && p.shares !== '') sharesInput.value = p.shares;
+                if (p.debate_rounds) debateSelect.value = p.debate_rounds;
+                if (p.risk_rounds) riskSelect.value = p.risk_rounds;
+            }
+
+            /* 即时校验：资金 / 成本价 / 持有股数 */
+            capitalInput.addEventListener('input', function () {
+                var err = validateMoney(capitalInput.value.trim(), '资金', true);
+                if (!err) fieldError(capitalInput, '');
+                else if (capitalInput.value.trim() !== '') fieldError(capitalInput, err);
+            });
+            capitalInput.addEventListener('blur', function () {
+                fieldError(capitalInput, validateMoney(capitalInput.value.trim(), '资金', false));
+            });
+            costInput.addEventListener('input', function () {
+                var err = validateMoney(costInput.value.trim(), '成本价', true, 3);
+                if (!err) fieldError(costInput, '');
+                else if (costInput.value.trim() !== '') fieldError(costInput, err);
+            });
+            costInput.addEventListener('blur', function () {
+                var holding = positionSelect.value === 'holding';
+                fieldError(costInput, holding ? validateMoney(costInput.value.trim(), '成本价', false, 3) : '');
+            });
+            sharesInput.addEventListener('input', function () {
+                var err = validateShares(sharesInput.value.trim(), '持有股数', true);
+                if (!err) fieldError(sharesInput, '');
+                else if (sharesInput.value.trim() !== '') fieldError(sharesInput, err);
+            });
+            sharesInput.addEventListener('blur', function () {
+                var holding = positionSelect.value === 'holding';
+                fieldError(sharesInput, holding ? validateShares(sharesInput.value.trim(), '持有股数', false) : '');
+            });
+
+            positionSelect.addEventListener('change', syncHoldingVisibility);
+
+            function poll(taskId) {
+                fetch('/analyze/status?task_id=' + encodeURIComponent(taskId))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.status === 'done') {
+                            stopPolling();
+                            showProgress('分析完成，正在刷新页面…');
+                            // 标记「刚完成一次新分析」，reload 后默认展开报告 + 视觉提示
+                            try {
+                                sessionStorage.setItem(COMPLETED_KEY, JSON.stringify({
+                                    code: codeInput.value.trim(),
+                                    ts: Date.now(),
+                                }));
+                            } catch (e) {}
+                            setTimeout(function () {
+                                // 强制刷新（带时间戳参数绕过浏览器缓存，确保历史列表与展示更新）
+                                var u = window.location.href.split('#')[0];
+                                window.location.href = u + (u.indexOf('?') >= 0 ? '&' : '?') + '_r=' + Date.now();
+                            }, 600);
+                        } else if (data.status === 'failed') {
+                            stopPolling();
+                            hideProgress();
+                            setLoading(false);
+                            showAlert('分析失败：' + (data.error || '未知错误'), 'error');
+                        } else {
+                            pollTimer = setTimeout(function () { poll(taskId); }, 3000);
+                        }
+                    })
+                    .catch(function () {
+                        pollTimer = setTimeout(function () { poll(taskId); }, 3000);
+                    });
+            }
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                hideAlert();
+                clearAllFieldErrors();
+
+                var code = codeInput.value.trim();
+                if (!code) { showAlert('请输入股票代码', 'error'); codeInput.focus(); return; }
+                if (!/^\d{6}$/.test(code)) { showAlert('股票代码必须为 6 位数字', 'error'); codeInput.focus(); return; }
+
+                var capitalStr = capitalInput.value.trim();
+                var capitalErr = validateMoney(capitalStr, '资金', false);
+                if (capitalErr) { fieldError(capitalInput, capitalErr); capitalInput.focus(); return; }
+
+                var holding = positionSelect.value === 'holding';
+                var costPrice = null;
+                var sharesVal = null;
+                if (holding) {
+                    var costStr = costInput.value.trim();
+                    if (!costStr) { fieldError(costInput, '持仓状态请填写成本价'); costInput.focus(); return; }
+                    var costErr = validateMoney(costStr, '成本价', false, 3);
+                    if (costErr) { fieldError(costInput, costErr); costInput.focus(); return; }
+                    costPrice = costStr;
+
+                    var sharesStr = sharesInput.value.trim();
+                    if (!sharesStr) { fieldError(sharesInput, '持仓状态请填写持有股数'); sharesInput.focus(); return; }
+                    var sharesErr = validateShares(sharesStr, '持有股数', false);
+                    if (sharesErr) { fieldError(sharesInput, sharesErr); sharesInput.focus(); return; }
+                    sharesVal = sharesStr;
+                }
+
+                saveParams();
+
+                var body = new URLSearchParams();
+                body.set('code', code);
+                body.set('capital', capitalStr);
+                body.set('position_status', positionSelect.value);
+                body.set('debate_rounds', debateSelect.value);
+                body.set('risk_rounds', riskSelect.value);
+                if (holding && costPrice) body.set('cost_price', costPrice);
+                if (holding && sharesVal) body.set('shares', sharesVal);
+
+                setLoading(true);
+                showProgress('正在提交分析任务…');
+
+                fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                })
+                    .then(function (r) {
+                        return r.json().then(function (j) { return { status: r.status, data: j }; });
+                    })
+                    .then(function (res) {
+                        if (res.status === 202 && res.data.task_id) {
+                            showProgress('正在分析…（后台运行，约 3-5 分钟）');
+                            poll(res.data.task_id);
+                        } else if (res.status === 409) {
+                            setLoading(false);
+                            hideProgress();
+                            showAlert(res.data.detail || '已有分析进行中', 'info');
+                        } else if (res.status === 400) {
+                            setLoading(false);
+                            hideProgress();
+                            showAlert(res.data.detail || '参数错误', 'error');
+                        } else {
+                            setLoading(false);
+                            hideProgress();
+                            showAlert(res.data.detail || '提交失败', 'error');
+                        }
+                    })
+                    .catch(function () {
+                        setLoading(false);
+                        hideProgress();
+                        showAlert('网络错误，提交失败', 'error');
+                    });
+            });
+
+            restoreParams();
+            syncHoldingVisibility();
+        }
+
+        /* ── 报告分块折叠展开 ─────────────────────────────── */
+
+        function setBlockExpanded(block, expanded) {
+            var toggle = block.querySelector('.report-block-toggle');
+            var content = block.querySelector('.report-block-content');
+            if (!toggle || !content) return;
+            toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            toggle.classList.toggle('expanded', expanded);
+            content.classList.toggle('is-collapsed', !expanded);
+        }
+
+        function initReportToggle() {
+            var blocks = document.querySelectorAll('.report-block');
+            if (!blocks.length) return;
+
+            var justCompleted = readJustCompleted();
+            var shouldExpandAll = !!(justCompleted && justCompleted.code && justCompleted.code === currentCode());
+
+            blocks.forEach(function (block) {
+                var toggle = block.querySelector('.report-block-toggle');
+                if (!toggle) return;
+                toggle.addEventListener('click', function () {
+                    var content = block.querySelector('.report-block-content');
+                    var isCollapsed = content && content.classList.contains('is-collapsed');
+                    setBlockExpanded(block, !!isCollapsed);
+                });
+                if (shouldExpandAll) setBlockExpanded(block, true);
+            });
+        }
+
+        /* ── 历史分析选择器 ───────────────────────────────── */
+
+        function initHistorySelect() {
+            var select = $('history-select');
+            if (!select) return;
+            select.addEventListener('change', function () {
+                var val = select.value;
+                if (!val) return;
+                var parts = val.split('|');
+                if (parts.length !== 2) return;
+                window.location.href = '/?code=' + encodeURIComponent(parts[0]) +
+                    '&date=' + encodeURIComponent(parts[1]);
+            });
+        }
+
+        /* ── 新分析完成：提示条 + 标题闪烁 ────────────────── */
+
+        function handleJustCompleted() {
+            var justCompleted = readJustCompleted();
+            if (!justCompleted) return;
+            if (!justCompleted.code || justCompleted.code !== currentCode()) {
+                clearJustCompleted();
+                return;
+            }
+            showToast('✅ 新分析已完成：' + justCompleted.code + ' · 报告已更新');
+            flashElement($('section-report') || $('section-kline') || document.querySelector('.header-title'));
+            clearJustCompleted();
+        }
+
+        /* ── K 线图（ECharts candlestick + 成交量 + 均线 + dataZoom） ── */
+
+        var MA_COLORS = ['#f0c674', '#58a6ff', '#a371f7', '#f0883e', '#3fb950', '#d2991d'];
+
+        function calcMA(dayCount, closes) {
+            var result = [];
+            for (var i = 0; i < closes.length; i++) {
+                if (i < dayCount - 1) { result.push(null); continue; }
+                var sum = 0;
+                for (var j = 0; j < dayCount; j++) sum += closes[i - j];
+                result.push(+(sum / dayCount).toFixed(3));
+            }
+            return result;
+        }
+
+        function renderKlineChart(chart, data, rangeEl) {
+            var dates = data.dates;
+            var klines = data.klines;
+            var candle = [];
+            var volume = [];
+            var closes = [];
+            for (var i = 0; i < klines.length; i++) {
+                var k = klines[i];
+                // 后端字段顺序 [open, close, low, high, volume]
+                candle.push([k[0], k[1], k[2], k[3]]);
+                var up = k[1] >= k[0];
+                volume.push({ value: k[4], itemStyle: { color: up ? '#f85149' : '#3fb950' } });
+                closes.push(k[1]);
+            }
+
+            var maDays = [5, 10, 20, 30, 60, 120];
+            var maSeries = maDays.map(function (d, idx) {
+                return {
+                    name: 'MA' + d,
+                    type: 'line',
+                    data: calcMA(d, closes),
+                    smooth: true,
+                    showSymbol: false,
+                    lineStyle: { width: 1, color: MA_COLORS[idx] },
+                    itemStyle: { color: MA_COLORS[idx] },
+                };
+            });
+
+            var legendData = ['K线', '成交量'].concat(maDays.map(function (d) { return 'MA' + d; }));
+
+            var option = {
+                animation: false,
+                backgroundColor: 'transparent',
+                legend: {
+                    data: legendData,
+                    top: 0,
+                    textStyle: { color: '#8b949e', fontSize: 12 },
+                    inactiveColor: '#4a4f58',
+                    itemWidth: 16,
+                    itemHeight: 8,
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    backgroundColor: '#161b22',
+                    borderColor: '#30363d',
+                    textStyle: { color: '#e6edf3' },
+                },
+                axisPointer: { link: [{ xAxisIndex: 'all' }] },
+                grid: [
+                    { left: '8%', right: '8%', top: 40, height: '56%' },
+                    { left: '8%', right: '8%', top: '74%', height: '14%' },
+                ],
+                xAxis: [
+                    {
+                        type: 'category',
+                        data: dates,
+                        boundaryGap: false,
+                        axisLine: { lineStyle: { color: '#30363d' } },
+                        axisTick: { show: false },
+                        axisLabel: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax',
+                    },
+                    {
+                        type: 'category',
+                        gridIndex: 1,
+                        data: dates,
+                        boundaryGap: false,
+                        axisLine: { lineStyle: { color: '#30363d' } },
+                        axisTick: { show: false },
+                        axisLabel: {
+                            color: '#8b949e',
+                            fontSize: 11,
+                            showMinLabel: true,
+                            showMaxLabel: true,
+                        },
+                        min: 'dataMin',
+                        max: 'dataMax',
+                    },
+                ],
+                yAxis: [
+                    {
+                        scale: true,
+                        axisLabel: { color: '#8b949e' },
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+                    },
+                    {
+                        scale: true,
+                        gridIndex: 1,
+                        axisLabel: { show: false },
+                        splitLine: { show: false },
+                    },
+                ],
+                dataZoom: [
+                    { type: 'inside', xAxisIndex: [0, 1], start: 0, end: 100 },
+                    {
+                        type: 'slider',
+                        xAxisIndex: [0, 1],
+                        bottom: 4,
+                        height: 24,
+                        start: 0,
+                        end: 100,
+                        borderColor: '#30363d',
+                        backgroundColor: 'rgba(255,255,255,0.04)',
+                        fillerColor: 'rgba(88,166,255,0.15)',
+                        handleStyle: { color: '#58a6ff', borderColor: '#58a6ff' },
+                        moveHandleStyle: { color: '#58a6ff' },
+                        textStyle: { color: '#8b949e' },
+                        dataBackground: {
+                            lineStyle: { color: '#30363d' },
+                            areaStyle: { color: 'rgba(88,166,255,0.08)' },
+                        },
+                    },
+                ],
+                series: [
+                    {
+                        name: 'K线',
+                        type: 'candlestick',
+                        data: candle,
+                        itemStyle: {
+                            color: '#f85149',
+                            color0: '#3fb950',
+                            borderColor: '#f85149',
+                            borderColor0: '#3fb950',
+                        },
+                    },
+                ].concat(maSeries).concat([
+                    {
+                        name: '成交量',
+                        type: 'bar',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        data: volume,
+                    },
+                ]),
+            };
+
+            if (chart) {
+                chart.setOption(option, true);
+                chart.off('datazoom');
+                chart.on('datazoom', function (params) {
+                    if (!rangeEl) return;
+                    var batch = params.batch && params.batch[0];
+                    if (!batch) return;
+                    var start = batch.start != null ? batch.start : 0;
+                    var end = batch.end != null ? batch.end : 100;
+                    var n = dates.length;
+                    var sIdx = Math.round((start / 100) * (n - 1));
+                    var eIdx = Math.round((end / 100) * (n - 1));
+                    rangeEl.textContent = '区间: ' + dates[sIdx] + ' ~ ' + dates[eIdx];
+                });
+                if (rangeEl && dates.length) {
+                    rangeEl.textContent = '区间: ' + dates[0] + ' ~ ' + dates[dates.length - 1];
+                }
+            } else {
+                var el = document.getElementById('kline-chart');
+                if (el) el.innerHTML = '<div class="chart-empty">ECharts 未加载，无法渲染 K 线图</div>';
+            }
+        }
+
+        function initKline() {
+            var chartEl = $('kline-chart');
+            var section = $('section-kline');
+            if (!chartEl) return;
+
+            var code = currentCode();
+            if (!code) { if (section) section.hidden = true; return; }
+
+            var rangeEl = $('kline-range');
+            var chart = (typeof echarts !== 'undefined') ? echarts.init(chartEl) : null;
+
+            fetch('/kline?code=' + encodeURIComponent(code))
+                .then(function (r) { return r.json().then(function (j) { return { status: r.status, data: j }; }); })
+                .then(function (res) {
+                    if (res.status !== 200 || !res.data.dates || !res.data.dates.length) {
+                        var msg = res.data && res.data.detail ? res.data.detail : '暂无 K 线数据';
+                        chartEl.innerHTML = '<div class="chart-empty">' + msg + '</div>';
+                        return;
+                    }
+                    renderKlineChart(chart, res.data, rangeEl);
+                })
+                .catch(function () {
+                    chartEl.innerHTML = '<div class="chart-empty">K 线数据加载失败</div>';
+                });
+
+            window.addEventListener('resize', function () {
+                if (chart) chart.resize();
+            });
+        }
+
+        /* ── 数据可视化（Web v4）：指标卡片 + RSI/MACD + 资金流 ── */
+
+        var _visCharts = [];
+
+        function currentDate() {
+            return document.body.getAttribute('data-date') || '';
+        }
+
+        function fmtPct(v, signed) {
+            if (v === null || v === undefined) return null;
+            var n = Number(v);
+            if (isNaN(n)) return null;
+            var prefix = (signed && n > 0) ? '+' : '';
+            return prefix + n.toFixed(2) + '%';
+        }
+
+        function fmtNum(v, suffix) {
+            if (v === null || v === undefined) return null;
+            var n = Number(v);
+            if (isNaN(n)) return null;
+            return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + (suffix || '');
+        }
+
+        function fmtWan(wan) {
+            if (wan === null || wan === undefined) return null;
+            var n = Number(wan);
+            if (isNaN(n)) return null;
+            var abs = Math.abs(n);
+            var sign = n < 0 ? '-' : '';
+            if (abs >= 10000) return sign + (abs / 10000).toFixed(2) + '亿';
+            return sign + abs.toFixed(0) + '万';
+        }
+
+        function chartEmptyHtml(msg) {
+            return '<div class="chart-empty">' + msg + '</div>';
+        }
+
+        function renderMetricCard(gridEl, items) {
+            if (!gridEl) return;
+            var html = '';
+            for (var i = 0; i < items.length; i++) {
+                var it = items[i];
+                var valHtml;
+                if (it.value === null || it.value === undefined) {
+                    valHtml = '<span class="metric-value metric-missing">数据缺失</span>';
+                } else {
+                    var cls = '';
+                    if (it.pos !== undefined && it.pos !== null) {
+                        cls = it.pos > 0 ? 'metric-pos' : (it.pos < 0 ? 'metric-neg' : '');
+                    }
+                    valHtml = '<span class="metric-value ' + cls + '">' + it.text + '</span>';
+                }
+                html += '<div class="metric-card">' +
+                    '<div class="metric-label">' + it.label + '</div>' +
+                    valHtml +
+                    (it.sub ? '<div class="metric-sub">' + it.sub + '</div>' : '') +
+                    '</div>';
+            }
+            gridEl.innerHTML = html;
+        }
+
+        function renderFundamentals(d) {
+            var f = d.fundamentals || {};
+            renderMetricCard($('fundamentals-grid'), [
+                { label: 'ROE', value: f.roe, text: fmtPct(f.roe), sub: '净资产收益率' },
+                { label: '毛利率', value: f.gross_margin, text: fmtPct(f.gross_margin), sub: '销售毛利率' },
+                { label: '净利率', value: f.net_margin, text: fmtPct(f.net_margin), sub: '销售净利率' },
+                { label: '营收同比', value: f.revenue_yoy, text: fmtPct(f.revenue_yoy, true), pos: f.revenue_yoy },
+                { label: '净利同比', value: f.net_profit_yoy, text: fmtPct(f.net_profit_yoy, true), pos: f.net_profit_yoy },
+                { label: '负债率', value: f.debt_ratio, text: fmtPct(f.debt_ratio), sub: '资产负债率' },
+            ]);
+        }
+
+        function renderValuation(d) {
+            var v = d.valuation || {};
+            renderMetricCard($('valuation-grid'), [
+                { label: 'PE(TTM)', value: v.pe, text: fmtNum(v.pe), sub: '市盈率' },
+                { label: 'PB', value: v.pb, text: fmtNum(v.pb), sub: '市净率' },
+                { label: '股息率', value: v.dividend_yield, text: fmtPct(v.dividend_yield) },
+                { label: '总市值', value: v.market_cap, text: fmtNum(v.market_cap, '亿'), sub: '亿元' },
+            ]);
+        }
+
+        function renderTechSnapshot(d) {
+            var el = $('tech-snapshot');
+            if (!el) return;
+            var t = (d.technical && d.technical.latest) || {};
+            function cell(label, val) {
+                var v = (val === null || val === undefined) ? '数据缺失' : val;
+                return '<div class="snap-cell"><span class="snap-label">' + label + '</span><span class="snap-value">' + v + '</span></div>';
+            }
+            var bp = (t.boll_position === null || t.boll_position === undefined) ? null : t.boll_position + '%';
+            el.innerHTML =
+                cell('MA5', t.ma5) + cell('MA10', t.ma10) + cell('MA20', t.ma20) +
+                cell('MA60', t.ma60) + cell('MA120', t.ma120) +
+                cell('MACD·DIF', t.macd_dif) + cell('DEA', t.macd_dea) + cell('柱', t.macd_bar) +
+                cell('RSI14', t.rsi14) + cell('布林带位置', bp);
+        }
+
+        function renderRsiChart(d) {
+            var el = $('rsi-chart');
+            if (!el) return;
+            var s = (d.technical && d.technical.series) || {};
+            if (!s.dates || !s.dates.length) { el.innerHTML = chartEmptyHtml('暂无技术指标数据'); return; }
+            var chart = (typeof echarts !== 'undefined') ? echarts.init(el) : null;
+            if (!chart) { el.innerHTML = chartEmptyHtml('ECharts 未加载'); return; }
+            var n = s.dates.length;
+            chart.setOption({
+                backgroundColor: 'transparent',
+                grid: { left: '8%', right: '5%', top: 28, bottom: 32 },
+                tooltip: { trigger: 'axis', backgroundColor: '#161b22', borderColor: '#30363d', textStyle: { color: '#e6edf3' } },
+                xAxis: {
+                    type: 'category', data: s.dates, boundaryGap: false,
+                    axisLine: { lineStyle: { color: '#30363d' } },
+                    axisLabel: { color: '#8b949e', fontSize: 10, showMinLabel: true, showMaxLabel: true,
+                        interval: function (i) { return i % Math.max(1, Math.floor(n / 6)) === 0; } },
+                },
+                yAxis: {
+                    min: 0, max: 100,
+                    splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+                    axisLabel: { color: '#8b949e' },
+                },
+                series: [{
+                    name: 'RSI14', type: 'line', data: s.rsi, showSymbol: false,
+                    lineStyle: { color: '#a371f7', width: 1.5 }, itemStyle: { color: '#a371f7' },
+                    areaStyle: { color: 'rgba(163,113,247,0.10)' },
+                    markLine: {
+                        silent: true, symbol: 'none',
+                        label: { color: '#8b949e', fontSize: 10 },
+                        data: [
+                            { yAxis: 70, lineStyle: { color: 'rgba(248,81,73,0.55)', type: 'dashed' } },
+                            { yAxis: 30, lineStyle: { color: 'rgba(63,185,80,0.55)', type: 'dashed' } },
+                        ],
+                    },
+                }],
+            });
+            _visCharts.push(chart);
+        }
+
+        function renderMacdChart(d) {
+            var el = $('macd-chart');
+            if (!el) return;
+            var s = (d.technical && d.technical.series) || {};
+            if (!s.dates || !s.dates.length) { el.innerHTML = chartEmptyHtml('暂无技术指标数据'); return; }
+            var chart = (typeof echarts !== 'undefined') ? echarts.init(el) : null;
+            if (!chart) { el.innerHTML = chartEmptyHtml('ECharts 未加载'); return; }
+            var n = s.dates.length;
+            var bars = [];
+            for (var i = 0; i < s.macd_bar.length; i++) {
+                var b = s.macd_bar[i];
+                if (b === null || b === undefined) { bars.push(null); continue; }
+                bars.push({ value: b, itemStyle: { color: b >= 0 ? '#f85149' : '#3fb950' } });
+            }
+            chart.setOption({
+                backgroundColor: 'transparent',
+                grid: { left: '8%', right: '5%', top: 28, bottom: 32 },
+                tooltip: { trigger: 'axis', backgroundColor: '#161b22', borderColor: '#30363d', textStyle: { color: '#e6edf3' } },
+                legend: { data: ['DIF', 'DEA', 'MACD'], top: 0, textStyle: { color: '#8b949e', fontSize: 11 }, itemWidth: 14, itemHeight: 7 },
+                xAxis: {
+                    type: 'category', data: s.dates, boundaryGap: false,
+                    axisLine: { lineStyle: { color: '#30363d' } },
+                    axisLabel: { color: '#8b949e', fontSize: 10, showMinLabel: true, showMaxLabel: true,
+                        interval: function (i) { return i % Math.max(1, Math.floor(n / 6)) === 0; } },
+                },
+                yAxis: { scale: true, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, axisLabel: { color: '#8b949e' } },
+                series: [
+                    { name: 'DIF', type: 'line', data: s.macd_dif, showSymbol: false, lineStyle: { color: '#f0c674', width: 1.2 }, itemStyle: { color: '#f0c674' } },
+                    { name: 'DEA', type: 'line', data: s.macd_dea, showSymbol: false, lineStyle: { color: '#58a6ff', width: 1.2 }, itemStyle: { color: '#58a6ff' } },
+                    { name: 'MACD', type: 'bar', data: bars },
+                ],
+            });
+            _visCharts.push(chart);
+        }
+
+        function flowBadge(v) {
+            if (v === null || v === undefined) return '<span class="flow-missing">数据缺失</span>';
+            var cls = v >= 0 ? 'flow-pos' : 'flow-neg';
+            return '<span class="' + cls + '">' + fmtWan(v) + '</span>';
+        }
+
+        function renderFundFlow(d) {
+            var el = $('fundflow-chart');
+            var summaryEl = $('fundflow-summary');
+            var cf = d.capital_flow || {};
+            var daily = cf.daily || {};
+            if (!daily.dates || !daily.dates.length) {
+                if (el) el.innerHTML = chartEmptyHtml('暂无资金流数据');
+                if (summaryEl) summaryEl.innerHTML = '';
+                return;
+            }
+            var bars = [];
+            for (var i = 0; i < daily.net_inflow.length; i++) {
+                var v = daily.net_inflow[i];
+                bars.push({ value: v, itemStyle: { color: v >= 0 ? '#f85149' : '#3fb950' } });
+            }
+            var chart = (typeof echarts !== 'undefined') ? echarts.init(el) : null;
+            if (chart) {
+                var n = daily.dates.length;
+                chart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { left: '8%', right: '5%', top: 28, bottom: 32 },
+                    tooltip: {
+                        trigger: 'axis', axisPointer: { type: 'shadow' },
+                        backgroundColor: '#161b22', borderColor: '#30363d', textStyle: { color: '#e6edf3' },
+                        valueFormatter: function (v) { return (v == null) ? '' : fmtWan(v); },
+                    },
+                    xAxis: {
+                        type: 'category', data: daily.dates,
+                        axisLine: { lineStyle: { color: '#30363d' } },
+                        axisLabel: { color: '#8b949e', fontSize: 10, showMinLabel: true, showMaxLabel: true,
+                            interval: function (i) { return i % Math.max(1, Math.floor(n / 8)) === 0; } },
+                    },
+                    yAxis: { scale: true, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, axisLabel: { color: '#8b949e' } },
+                    series: [{ name: '主力净流入(万元)', type: 'bar', data: bars, barMaxWidth: 18 }],
+                });
+                _visCharts.push(chart);
+            } else if (el) {
+                el.innerHTML = chartEmptyHtml('ECharts 未加载');
+            }
+            if (summaryEl) {
+                summaryEl.innerHTML =
+                    '近5日 ' + flowBadge(cf.net_inflow_5d) +
+                    ' · 近10日 ' + flowBadge(cf.net_inflow_10d) +
+                    ' · 近20日 ' + flowBadge(cf.net_inflow_20d);
+            }
+        }
+
+        function initAnalysisData() {
+            var code = currentCode();
+            if (!code) return;
+            var url = '/analysis-data?code=' + encodeURIComponent(code);
+            var date = currentDate();
+            if (date) url += '&date=' + encodeURIComponent(date);
+            fetch(url)
+                .then(function (r) { return r.json().then(function (j) { return { status: r.status, data: j }; }); })
+                .then(function (res) {
+                    if (res.status !== 200) return;
+                    renderFundamentals(res.data);
+                    renderValuation(res.data);
+                    renderTechSnapshot(res.data);
+                    renderRsiChart(res.data);
+                    renderMacdChart(res.data);
+                    renderFundFlow(res.data);
+                })
+                .catch(function () {});
+        }
+
+        /* ── 初始化入口（模块脚本就绪时 DOM 可能已就绪） ── */
+
+        function init() {
+            initForm();
+            initReportToggle();
+            initHistorySelect();
+            initKline();
+            initAnalysisData();
+            handleJustCompleted();
+            window.addEventListener('resize', function () {
+                for (var i = 0; i < _visCharts.length; i++) { if (_visCharts[i]) _visCharts[i].resize(); }
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+# 12 角色配置 YAML
+# 每个角色 = name + type + llm_layer + tools + output_format + context_inject + max_tool_calls
+#
+# 角色类型对应 prompt 模块：
+# - analysts (4): 使用 Jinja2 .j2 模板渲染
+# - researchers (2): prompts/researchers/{bull,bear}.py → ROLE_DESCRIPTION + EXTRA_RULES
+# - managers (2):  prompts/managers/{research_manager,portfolio_manager}.py → ROLE_DESCRIPTION + EXTRA_RULES
+# - trader (1):     prompts/trader/trader.py → ROLE_DESCRIPTION + EXTRA_RULES
+# - risk (3):       prompts/risk/{aggressive,conservative,neutral}.py → ROLE_DESCRIPTION + EXTRA_RULES
+#
+# LLM 分层（架构决策 2）：
+#   deep:   deepseek-reasoner（研究经理、决策经理）
+#   quick:  deepseek-chat（其余 10 角色）
+#
+# 输出格式（spec 第四节）：
+#   free_text:  自由文本，人类可读，下游当上下文读取（分析师/研究员/风控）
+#   structured: Pydantic 结构化输出（研究经理→ResearchPlan/交易员→TraderAction/决策经理→Decision）
+#
+# 工具调用循环（架构决策 2 成本控制）：
+#   max_tool_calls: 每角色最大工具调用次数，0 表示不调用工具（纯 LLM 推理）
+
+roles:
+  # ── 4 名分析师 (quick) ──────────────────────────────────────
+  fundamentals:
+    type: analyst
+    llm_layer: quick
+    name: "基本面分析师"
+    description: "专注于A股财报分析和价值投资研究。分析盈利能力、成长性、估值水平和财务风险。"
+    tools: [get_financials, get_valuation, get_st_risk]
+    output_format: free_text
+    context_inject: [kline_summary, financials, valuation, st_risk]
+    max_tool_calls: 5
+    prompt_module: analysts          # 使用 Jinja2 .j2 模板
+
+  technical:
+    type: analyst
+    llm_layer: quick
+    name: "技术面分析师"
+    description: "精通K线形态、均线系统和技术指标。分析趋势、支撑/压力位、量价关系和买卖信号。"
+    tools: [compute_indicators]
+    output_format: free_text
+    context_inject: [kline_summary, indicators]
+    max_tool_calls: 5
+    prompt_module: analysts
+
+  news:
+    type: analyst
+    llm_layer: quick
+    name: "新闻舆情分析师"
+    description: "跟踪近期新闻、公告和政策事件，分析市场情绪和舆情方向。"
+    tools: [get_news, get_announcements]
+    output_format: free_text
+    context_inject: [news, announcements]
+    max_tool_calls: 5
+    prompt_module: analysts
+
+  capital_flow:
+    type: analyst
+    llm_layer: quick
+    name: "资金面分析师"
+    description: "分析主力资金流向、大单动向和融资融券数据，判断资金态度。"
+    tools: [get_capital_flow, get_margin_trading]
+    output_format: free_text
+    context_inject: [capital_flow, margin_trading]
+    max_tool_calls: 5
+    prompt_module: analysts
+
+  # ── 2 名研究员 (quick) ──────────────────────────────────────
+  bull:
+    type: researcher
+    llm_layer: quick
+    name: "多头研究员"
+    description: "从分析师报告中提取看涨论据，构建多方案件，回应空头质疑。"
+    tools: []                    # 只读分析师报告，不调工具
+    output_format: free_text
+    context_inject: [analyst_reports]
+    max_tool_calls: 0
+    prompt_module: researchers    # → prompts/researchers/bull.py
+
+  bear:
+    type: researcher
+    llm_layer: quick
+    name: "空头研究员"
+    description: "从分析师报告中提取看跌论据，构建空方案件，回应多头质疑。"
+    tools: []
+    output_format: free_text
+    context_inject: [analyst_reports]
+    max_tool_calls: 0
+    prompt_module: researchers    # → prompts/researchers/bear.py
+
+  # ── 研究经理 (deep) ─────────────────────────────────────────
+  research_manager:
+    type: manager
+    llm_layer: deep
+    name: "研究经理"
+    description: "综合多空辩论双方的论点，提炼核心矛盾，形成结构化投资研判计划。"
+    tools: []
+    output_format: structured
+    output_schema: ResearchPlan   # Pydantic model name from finagent.agents.schemas
+    context_inject: [analyst_reports, debate_record, memory_context]
+    max_tool_calls: 0
+    prompt_module: managers       # → prompts/managers/research_manager.py
+
+  # ── 交易员 (quick) ──────────────────────────────────────────
+  trader:
+    type: trader
+    llm_layer: quick
+    name: "交易员"
+    description: "将研究经理的研判计划转化为可执行交易方案：价格区间、仓位档位、止损和目标。"
+    tools: [compute_position]
+    output_format: structured
+    output_schema: TraderAction
+    context_inject: [research_plan, kline_summary]
+    max_tool_calls: 3
+    prompt_module: trader         # → prompts/trader/trader.py
+
+  # ── 3 名风控 (quick) ────────────────────────────────────────
+  risk_aggressive:
+    type: risk
+    llm_layer: quick
+    name: "激进风控官"
+    description: "从进攻视角评估交易方案，关注机会大小和收益空间。"
+    tools: []
+    output_format: free_text
+    context_inject: [trader_action, analyst_reports]
+    max_tool_calls: 0
+    prompt_module: risk           # → prompts/risk/aggressive.py
+
+  risk_conservative:
+    type: risk
+    llm_layer: quick
+    name: "保守风控官"
+    description: "从防守视角评估交易方案，关注下行风险和潜在损失。"
+    tools: []
+    output_format: free_text
+    context_inject: [trader_action, analyst_reports]
+    max_tool_calls: 0
+    prompt_module: risk           # → prompts/risk/conservative.py
+
+  risk_neutral:
+    type: risk
+    llm_layer: quick
+    name: "中性风控官"
+    description: "平衡攻守，给出中立风险评估，倾向给出有条件通过。"
+    tools: []
+    output_format: free_text
+    context_inject: [trader_action, analyst_reports]
+    max_tool_calls: 0
+    prompt_module: risk           # → prompts/risk/neutral.py
+
+  # ── 决策经理 (deep) ─────────────────────────────────────────
+  portfolio_manager:
+    type: manager
+    llm_layer: deep
+    name: "决策经理"
+    description: "综合全部上游分析、辩论、交易方案和风控评估，做出最终交易决策（信号 + 仓位档位）。"
+    tools: []
+    output_format: structured
+    output_schema: Decision       # Pydantic model → decision.json 契约
+    context_inject: [all_upstream, risk_assessments, memory_context, rule_review]
+    max_tool_calls: 0
+    prompt_module: managers       # → prompts/managers/portfolio_manager.py
