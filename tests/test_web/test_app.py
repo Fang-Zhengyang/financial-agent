@@ -106,12 +106,13 @@ class TestAnalyzeTaskLifecycle:
         """合法提交 → 202 + task_id；状态查询可拿到 done + output_dir。"""
         captured = {}
 
-        def fake_spawn(task_id, code, capital, position_status, debate_rounds, risk_rounds, cost_price=None, shares=None):
+        def fake_spawn(task_id, code, capital, position_status, debate_rounds, risk_rounds, cost_price=None, shares=None, risk_preference=None):
             captured.update(
                 task_id=task_id, code=code, capital=capital,
                 position_status=position_status,
                 debate_rounds=debate_rounds, risk_rounds=risk_rounds,
                 cost_price=cost_price, shares=shares,
+                risk_preference=risk_preference,
             )
             # 模拟子进程立即完成
             with webapp._TASKS_LOCK:
@@ -133,6 +134,7 @@ class TestAnalyzeTaskLifecycle:
         assert captured["debate_rounds"] == 2
         assert captured["risk_rounds"] == 2
         assert captured["cost_price"] is None  # 未传 cost_price 默认 None
+        assert captured["risk_preference"] == "neutral"  # 默认风险偏好
 
         st = client.get("/analyze/status", params={"task_id": data["task_id"]})
         assert st.status_code == 200
@@ -339,7 +341,7 @@ class TestCostPriceForm:
         """holding + cost_price → 202，且 cost_price 正确传给 subprocess 启动函数。"""
         captured = {}
 
-        def fake_spawn(task_id, code, capital, position_status, debate_rounds, risk_rounds, cost_price=None, shares=None):
+        def fake_spawn(task_id, code, capital, position_status, debate_rounds, risk_rounds, cost_price=None, shares=None, risk_preference=None):
             captured.update(cost_price=cost_price, shares=shares, position_status=position_status)
             with webapp._TASKS_LOCK:
                 webapp._TASKS[task_id]["status"] = "done"
@@ -393,7 +395,7 @@ class TestSharesForm:
         captured = {}
 
         def fake_spawn(task_id, code, capital, position_status, debate_rounds,
-                       risk_rounds, cost_price=None, shares=None):
+                       risk_rounds, cost_price=None, shares=None, risk_preference=None):
             captured.update(shares=shares, cost_price=cost_price, position_status=position_status)
             with webapp._TASKS_LOCK:
                 webapp._TASKS[task_id]["status"] = "done"

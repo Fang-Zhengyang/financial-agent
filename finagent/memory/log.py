@@ -33,7 +33,7 @@ def _parse_entries(content: str) -> list[dict]:
     """Parse all decision entries from markdown content.
 
     Returns a list of dicts with keys: date, code, signal, position_tier,
-    status, rationale, outcome, pnl, notes, raw_block.
+    status, risk_preference, rationale, outcome, pnl, notes, raw_block.
     """
     entries: list[dict] = []
 
@@ -57,6 +57,7 @@ def _parse_entries(content: str) -> list[dict]:
             "signal": marker_match.group(3),
             "position_tier": int(marker_match.group(4)),
             "status": marker_match.group(5),
+            "risk_preference": "",
             "rationale": "",
             "outcome": "",
             "pnl": "",
@@ -66,6 +67,15 @@ def _parse_entries(content: str) -> list[dict]:
 
         # Extract rationale (everything after marker, stripping "**决策理由摘要**" header)
         body_after_marker = "\n".join(lines[1:]).strip()
+
+        # 风险偏好标记行（可选，向后兼容旧格式无此行）
+        pref_match = re.search(r"^-\s*风险偏好[:：]\s*(.+)$", body_after_marker, re.MULTILINE)
+        if pref_match:
+            entry["risk_preference"] = pref_match.group(1).strip()
+            body_after_marker = re.sub(
+                r"^-\s*风险偏好[:：].*$\n?", "", body_after_marker, flags=re.MULTILINE
+            ).strip()
+
         # Strip the "**决策理由摘要**" header if present
         if body_after_marker.startswith("**决策理由摘要**"):
             body_after_marker = body_after_marker[len("**决策理由摘要**"):].strip()
@@ -86,6 +96,15 @@ def _parse_entries(content: str) -> list[dict]:
 
         entries.append(entry)
     return entries
+
+
+def _pref_label(key: str) -> str:
+    """风险偏好规范键 → 中文标签（写入 decisions.md 用）。"""
+    try:
+        from finagent.compute.risk_preference import LABELS
+        return LABELS.get(key, key)
+    except Exception:  # noqa: BLE001 — 标签映射失败时退回原始键
+        return key
 
 
 class TradingMemoryLog:
@@ -118,6 +137,7 @@ class TradingMemoryLog:
         signal: str,
         position_tier: int,
         rationale: str,
+        risk_preference: str = "neutral",
     ) -> bool:
         """追加一条决策记录（pending 状态）。
 
@@ -130,6 +150,7 @@ class TradingMemoryLog:
             signal: Buy / Hold / Sell
             position_tier: 0 / 1 / 2 / 3
             rationale: 决策理由摘要（markdown 文本）
+            risk_preference: 风险偏好（aggressive/neutral/conservative，默认 neutral）
 
         Returns:
             True 表示写入成功，False 表示同日同代码已存在（跳过）。
@@ -141,11 +162,19 @@ class TradingMemoryLog:
             if entry["code"] == code and entry["date"] == date:
                 return False
 
+        # 风险偏好标记行（decisions.md 追加偏好标记）
+        pref_line = (
+            f"- 风险偏好：{_pref_label(risk_preference)}\n\n"
+            if risk_preference
+            else ""
+        )
+
         # 构建新条目
         marker = f"[{date} | {code} | {signal} | {position_tier} | pending]"
         block = (
             f"{_START}\n"
             f"{marker}\n\n"
+            f"{pref_line}"
             f"**决策理由摘要**\n\n"
             f"{rationale}\n\n"
             f"{_END}\n"
@@ -208,9 +237,15 @@ class TradingMemoryLog:
             if notes:
                 outcome_section += f"- 复盘反思：{notes}\n"
 
+        # 风险偏好标记行（重建条目时保留）
+        pref_line = ""
+        if target.get("risk_preference"):
+            pref_line = f"- 风险偏好：{target['risk_preference']}\n\n"
+
         replacement = (
             f"{_START}\n"
             f"{marker}\n\n"
+            f"{pref_line}"
             f"**决策理由摘要**\n\n"
             f"{target['rationale']}\n"
             f"{outcome_section}\n"

@@ -115,6 +115,7 @@ class Pipeline:
         shares: Optional[int] = None,
         debate_rounds: int | None = None,
         risk_rounds: int | None = None,
+        risk_preference: str = "neutral",
     ) -> PipelineState:
         """执行完整 11 步分析流水线。
 
@@ -126,6 +127,7 @@ class Pipeline:
             shares: 持仓股数 (正整数, 仅 holding 时生效, 默认 None)
             debate_rounds: 辩论轮次上限 (None=使用实例默认值)
             risk_rounds: 风控轮次上限 (None=使用实例默认值)
+            risk_preference: 风险偏好 (aggressive/neutral/conservative, 默认 neutral)
 
         Returns:
             PipelineState: 包含全部 11 步中间产物的完整状态
@@ -142,6 +144,7 @@ class Pipeline:
             shares=shares,
             debate_rounds=debate_rounds if debate_rounds is not None else self.debate_rounds,
             risk_rounds=risk_rounds if risk_rounds is not None else self.risk_rounds,
+            risk_preference=risk_preference,
             started_at=datetime.now().isoformat(),
             status="running",
         )
@@ -149,7 +152,8 @@ class Pipeline:
         # 初始化审计日志
         from finagent.output.logger import AuditLog
         self._audit_log = AuditLog(
-            code=code, capital=capital, position_status=position_status
+            code=code, capital=capital, position_status=position_status,
+            risk_preference=risk_preference,
         )
 
         # 将共享缓存挂到审计日志，使 run.log 的 CACHE 段记录真实命中/未命中

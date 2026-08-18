@@ -197,6 +197,19 @@ class TestDecisionSerialization:
         for field in required_fields:
             assert field in data, f"Missing field: {field}"
 
+    def test_risk_preference_default_and_roundtrip(self):
+        """risk_preference 默认 neutral，序列化/反序列化后保留。"""
+        d = make_decision()
+        assert d.risk_preference == "neutral"
+        data = json.loads(d.to_json())
+        assert data["risk_preference"] == "neutral"
+
+        d2 = make_decision(risk_preference="conservative")
+        data2 = json.loads(d2.to_json())
+        assert data2["risk_preference"] == "conservative"
+        d3 = Decision.from_json(d2.to_json())
+        assert d3.risk_preference == "conservative"
+
     def test_json_signal_is_string(self):
         d = make_decision()
         data = json.loads(d.to_json())

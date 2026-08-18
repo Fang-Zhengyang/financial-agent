@@ -7,7 +7,7 @@
 
 职责:
     1. argparse 解析参数 (--code/--period/--capital/--position-status/
-       --cost-price/--debate-rounds/--risk-rounds)
+       --cost-price/--shares/--debate-rounds/--risk-rounds/--risk-preference)
     2. 确定性预校验（比 Pipeline Step 1 更早拒绝明显无效输入）
     3. 组装依赖并调用 Pipeline
     4. 输出文件路径打印到 stdout
@@ -147,6 +147,18 @@ def validate_rounds(name: str, value: int) -> None:
         raise CliValidationError(f"--{name} 必须在 1-3 之间，收到 {value}")
 
 
+def validate_risk_preference(value: str) -> str:
+    """校验并规范化风险偏好（支持英文键 + 中文别名 激进/中立/保守）。
+
+    返回规范键 aggressive/neutral/conservative。
+    """
+    from finagent.compute.risk_preference import normalize as _normalize
+    try:
+        return _normalize(value)
+    except ValueError as e:
+        raise CliValidationError(str(e))
+
+
 def validate_args(args: argparse.Namespace) -> None:
     """确定性预校验全部参数（比 Pipeline Step 1 更早拒绝无效输入）。"""
     validate_code_format(args.code)
@@ -157,6 +169,7 @@ def validate_args(args: argparse.Namespace) -> None:
     validate_shares(args.shares, args.position_status)
     validate_rounds("debate-rounds", args.debate_rounds)
     validate_rounds("risk-rounds", args.risk_rounds)
+    validate_risk_preference(args.risk_preference)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -345,6 +358,7 @@ def run_analyze(args: argparse.Namespace) -> int:
 
     # 3. 运行 Pipeline
     from finagent.orchestration import PipelineError
+    from finagent.compute.risk_preference import normalize as _normalize_rp
     try:
         state = pipeline.run(
             code=args.code,
@@ -354,6 +368,7 @@ def run_analyze(args: argparse.Namespace) -> int:
             shares=args.shares,
             debate_rounds=args.debate_rounds,
             risk_rounds=args.risk_rounds,
+            risk_preference=_normalize_rp(args.risk_preference),
         )
     except PipelineError as e:
         print(f"✗ 分析失败: {e}", file=sys.stderr)
@@ -419,6 +434,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     analyze.add_argument(
         "--risk-rounds", type=int, default=DEFAULT_RISK_ROUNDS,
         help=f"风控讨论轮次上限 1-3（默认: {DEFAULT_RISK_ROUNDS}）",
+    )
+    analyze.add_argument(
+        "--risk-preference", default="neutral",
+        help="风险偏好: aggressive(激进)/neutral(中立)/conservative(保守)，默认 neutral",
     )
     return parser
 

@@ -576,6 +576,9 @@ def step_7_risk_control(state: PipelineState, **deps: Any) -> None:
     trader_context = _format_structured(state.trader_action)
     analyst_summary = _build_analyst_summary(state)
 
+    # 风险偏好约束（三风控官发言权重按偏好倾斜）
+    risk_pref_note = _build_risk_preference_note(state)
+
     for round_idx in range(max_rounds):
         round_texts: dict[str, str] = {}
 
@@ -591,10 +594,13 @@ def step_7_risk_control(state: PipelineState, **deps: Any) -> None:
                     {"title": "交易方案", "content": trader_context},
                     {"title": "分析师报告摘要", "content": analyst_summary},
                     {"title": "风控讨论历史", "content": history},
+                    {"title": "风险偏好约束", "content": risk_pref_note},
                 ],
                 "user_message": (
                     f"第 {round_idx + 1} 轮风控讨论。"
                     f"请从{risk_configs[role_id].name}的角度评估交易方案的可行性。"
+                    f"注意：用户风险偏好已设定（见「风险偏好约束」），"
+                    f"你的发言权重将按该偏好倾斜。"
                 ),
             }
 
@@ -657,6 +663,7 @@ def step_8_portfolio_manager(state: PipelineState, **deps: Any) -> None:
 
     pm_sections = [
         {"title": "上游分析汇总", "content": upstream},
+        {"title": "风险偏好约束", "content": _build_risk_preference_note(state)},
         {"title": "历史决策参考", "content": memory_context or "（无历史记录）"},
     ]
     _append_holding_section(state, pm_sections)
@@ -673,6 +680,8 @@ def step_8_portfolio_manager(state: PipelineState, **deps: Any) -> None:
             f"注意: 股票 {'是 ST' if state.is_st else '非 ST'}，"
             f"可用资金 {state.capital} 元，"
             f"建议股数必须为 100 股整数倍。"
+            f"请遵守「风险偏好约束」中的仓位上限（档位取 min(信号建议档, 偏好上限档)）"
+            f"与止损倾向，并参考风控意见权重倾斜。"
         ),
     }
 
@@ -710,8 +719,11 @@ def step_9_rule_review(state: PipelineState, **deps: Any) -> None:
     # 构建 LLM 决策的 dict 形式
     llm_dec = state.llm_decision
     if llm_dec is None:
-        state.final_decision = {"signal": "Hold", "position_tier": 0,
-                               "suggested_shares": 0, "risk_flags": ["LLM决策缺失"]}
+        state.final_decision = {
+            "signal": "Hold", "position_tier": 0,
+            "suggested_shares": 0, "risk_flags": ["LLM决策缺失"],
+            "risk_preference": state.risk_preference,
+        }
         state.rule_corrections = ["LLM 决策缺失 → 默认 Hold"]
         state.executability = {"limit_up": False, "limit_down": False, "t_plus1_note": ""}
         return
@@ -764,11 +776,14 @@ def step_9_rule_review(state: PipelineState, **deps: Any) -> None:
         quote=quote,
         capital=state.capital,
         trade_calendar=calendar_list,
+        risk_preference=state.risk_preference,
     )
 
     rule_result = review_decision(rule_input)
 
     state.final_decision = _reconcile_decision(rule_result.decision)
+    # 注入风险偏好标记（decision.json 契约新增字段）
+    state.final_decision["risk_preference"] = state.risk_preference
     # Bug #7: 决策经理可能输出空串 stop_loss/target → 契约校验失败。
     # 按现价 ±5% 生成兜底值，保证 decision.json 的 stop_loss/target 非空。
     state.final_decision = _fill_price_guardrails(state.final_decision, quote)
@@ -813,6 +828,7 @@ def step_10_memory(state: PipelineState, **deps: Any) -> None:
             signal=signal,
             position_tier=tier,
             rationale=rationale or f"{signal} / 仓位档位 {tier}",
+            risk_preference=state.risk_preference,
         )
         state.memory_written = written
         logger.info(f"Step 10: 记忆写入 {'成功' if written else '跳过(同日同代码已存在)'}")
@@ -1184,6 +1200,22 @@ def _append_holding_section(
     text = _build_holding_context(state)
     if text:
         sections.append({"title": "持仓（参考）", "content": text})
+
+
+def _build_risk_preference_note(state: PipelineState) -> str:
+    """构建风险偏好注入文本（决策经理 / 风控三人组共用）。
+
+    格式：用户风险偏好=X，仓位上限 Y%，止损倾向 Z，风控意见权重倾向 W。
+    """
+    from finagent.compute.risk_preference import resolve as _resolve
+
+    pref = _resolve(state.risk_preference)
+    return (
+        f"用户风险偏好：{pref.label}（{pref.key}），"
+        f"仓位上限 {int(pref.max_pct * 100)}%（档位最高 {pref.max_tier}），"
+        f"止损倾向：{pref.stop_loss_bias}，"
+        f"风控意见权重倾向：{pref.weight_bias}。"
+    )
 
 
 def _build_risk_history(state: PipelineState, current_round_texts: dict[str, str], round_idx: int) -> str:

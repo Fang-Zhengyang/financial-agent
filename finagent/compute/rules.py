@@ -25,6 +25,7 @@ from finagent.compute.schemas import (
     RuleReviewOutput,
     Executability,
 )
+from finagent.compute.risk_preference import resolve as resolve_risk_preference
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -384,6 +385,29 @@ def review_decision(input_: RuleReviewInput) -> RuleReviewOutput:
             corrections.append(
                 "R4:修正后股数为0→仓位档位降为0"
             )
+
+    # ── 风险偏好：仓位档位上限（在硬规则之后生效）────────────────
+    # 风险偏好只设「上限」，不越过 R2-R4 硬规则（*ST/ST/资金不足优先）。
+    # 最终 tier 取 min(信号建议档, 偏好上限档)；降档时同步确定性重算建议股数。
+    preference = resolve_risk_preference(input_.risk_preference)
+    if position_tier > preference.max_tier:
+        old_tier = position_tier
+        position_tier = preference.max_tier
+        decision["position_tier"] = position_tier
+        # 同步重算建议股数（H6：数字由确定性代码算，floor(capital×pct/(price×100))×100）
+        if price > 0:
+            capped_shares = int(
+                math.floor(capital * preference.max_pct / (price * _SHARES_PER_LOT) + 1e-10)
+            ) * _SHARES_PER_LOT
+            decision["suggested_shares"] = capped_shares
+            suggested_shares = capped_shares
+        else:
+            decision["suggested_shares"] = 0
+            suggested_shares = 0
+        corrections.append(
+            f"偏好:{preference.label}({preference.key})→仓位上限档{preference.max_tier}"
+            f"({int(preference.max_pct * 100)}%)→档位{old_tier}降为{position_tier}"
+        )
 
     # ── R5 + R6: 涨跌停可执行性 ───────────────────────────────
     # 使用容差判断是否触及涨跌停价

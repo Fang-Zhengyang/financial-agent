@@ -221,6 +221,8 @@ class RuleReviewInput(BaseModel):
         quote: 实时行情快照
         capital: 用户可用资金（元）
         trade_calendar: 交易日列表
+        risk_preference: 用户风险偏好（aggressive/neutral/conservative），
+            用于在硬规则（ST/资金/涨停）之后施加仓位档位上限
     """
     decision: dict = Field(..., description="decision.json 字典")
     st_info: STRiskInfo = Field(..., description="ST 风险信息")
@@ -228,6 +230,9 @@ class RuleReviewInput(BaseModel):
     capital: float = Field(..., description="可用资金")
     trade_calendar: list[date] = Field(
         ..., description="交易日列表"
+    )
+    risk_preference: str = Field(
+        default="neutral", description="风险偏好 aggressive/neutral/conservative"
     )
 
     @field_validator("capital")

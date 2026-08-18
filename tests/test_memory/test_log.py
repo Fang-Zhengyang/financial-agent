@@ -75,6 +75,46 @@ class TestTradingMemoryLogAppend:
         assert "[2026-08-12 | 000000 | Hold | 0 | pending]" in content
         assert "[2026-08-12 | 000003 | Hold | 3 | pending]" in content
 
+    def test_risk_preference_marker(self, temp_log_path):
+        """风险偏好标记写入 + 解析（向后兼容：旧条目无此行 → 空串）。"""
+        log = TradingMemoryLog(temp_log_path)
+        log.append_decision(
+            code="600519", date="2026-08-12", signal="Buy", position_tier=2,
+            rationale="茅台低估", risk_preference="conservative",
+        )
+
+        content = Path(temp_log_path).read_text(encoding="utf-8")
+        assert "- 风险偏好：保守" in content
+
+        entries = log.read_entries()
+        assert len(entries) == 1
+        assert entries[0]["risk_preference"] == "保守"
+
+    def test_risk_preference_default_neutral(self, temp_log_path):
+        """未显式传 risk_preference 时默认写入「中立」。"""
+        log = TradingMemoryLog(temp_log_path)
+        log.append_decision("600519", "2026-08-12", "Buy", 2, "默认偏好")
+
+        content = Path(temp_log_path).read_text(encoding="utf-8")
+        assert "- 风险偏好：中立" in content
+
+    def test_legacy_entry_without_marker_still_parses(self, temp_log_path):
+        """旧格式条目（无风险偏好行）仍可解析，risk_preference 为空串。"""
+        legacy = (
+            "<!-- DECISION_START -->\n"
+            "[2026-08-12 | 600519 | Buy | 2 | pending]\n\n"
+            "**决策理由摘要**\n\n"
+            "旧格式理由\n\n"
+            "<!-- DECISION_END -->\n"
+        )
+        Path(temp_log_path).write_text(legacy, encoding="utf-8")
+
+        log = TradingMemoryLog(temp_log_path)
+        entries = log.read_entries()
+        assert len(entries) == 1
+        assert entries[0]["risk_preference"] == ""
+        assert "旧格式理由" in entries[0]["rationale"]
+
 
 class TestTradingMemoryLogDedup:
     """RED: power-equality dedup — same date + same code skips write."""

@@ -23,6 +23,7 @@ from finagent.cli.main import (
     validate_cost_price,
     validate_period,
     validate_position_status,
+    validate_risk_preference,
     validate_rounds,
     validate_shares,
 )
@@ -116,6 +117,79 @@ class TestValidation:
             validate_rounds("debate-rounds", 0)
         with pytest.raises(CliValidationError):
             validate_rounds("risk-rounds", 4)
+
+
+class TestRiskPreferenceValidation:
+    """--risk-preference 参数校验（英文键 + 中文别名）。"""
+
+    def test_english_keys_normalize(self):
+        assert validate_risk_preference("aggressive") == "aggressive"
+        assert validate_risk_preference("neutral") == "neutral"
+        assert validate_risk_preference("conservative") == "conservative"
+
+    def test_chinese_aliases_normalize(self):
+        assert validate_risk_preference("激进") == "aggressive"
+        assert validate_risk_preference("中立") == "neutral"
+        assert validate_risk_preference("中性") == "neutral"
+        assert validate_risk_preference("保守") == "conservative"
+
+    def test_invalid_rejected(self):
+        with pytest.raises(CliValidationError, match="风险偏好"):
+            validate_risk_preference("risky")
+
+    def test_cli_flag_accepted(self, tmp_path, monkeypatch, capsys):
+        """CLI --risk-preference conservative 跑通，decision.json 含 risk_preference。"""
+        import importlib
+        import json as _json
+
+        cli_main = importlib.import_module("finagent.cli.main")
+        monkeypatch.setattr(cli_main, "OUTPUT_DIR", tmp_path / "output")
+        monkeypatch.setattr(cli_main, "MEMORY_DIR", tmp_path / "memory")
+        monkeypatch.setattr(cli_main, "_build_llm_client", lambda: MockLLMClient())
+        monkeypatch.setattr(cli_main, "_build_data_provider", lambda: MockDataProvider())
+
+        exit_code = main(["analyze", "--code", "600519", "--risk-preference", "conservative"])
+        assert exit_code == 0
+
+        decision_files = list((tmp_path / "output" / "600519").rglob("decision.json"))
+        assert decision_files, "decision.json 应已写入"
+        dec = _json.loads(decision_files[0].read_text(encoding="utf-8"))
+        assert dec.get("risk_preference") == "conservative"
+
+    def test_cli_chinese_alias_accepted(self, tmp_path, monkeypatch):
+        """CLI --risk-preference 保守（中文别名）跑通。"""
+        import importlib
+        import json as _json
+
+        cli_main = importlib.import_module("finagent.cli.main")
+        monkeypatch.setattr(cli_main, "OUTPUT_DIR", tmp_path / "output")
+        monkeypatch.setattr(cli_main, "MEMORY_DIR", tmp_path / "memory")
+        monkeypatch.setattr(cli_main, "_build_llm_client", lambda: MockLLMClient())
+        monkeypatch.setattr(cli_main, "_build_data_provider", lambda: MockDataProvider())
+
+        exit_code = main(["analyze", "--code", "600519", "--risk-preference", "保守"])
+        assert exit_code == 0
+
+        decision_files = list((tmp_path / "output" / "600519").rglob("decision.json"))
+        assert decision_files
+        dec = _json.loads(decision_files[0].read_text(encoding="utf-8"))
+        assert dec.get("risk_preference") == "conservative"
+
+    def test_cli_invalid_preference_rejected_before_deps(self, tmp_path, monkeypatch, capsys):
+        """非法风险偏好应在组装依赖前被拒绝（退出码 2）。"""
+        import importlib
+
+        cli_main = importlib.import_module("finagent.cli.main")
+        called = {"llm": False, "data": False}
+        monkeypatch.setattr(cli_main, "_build_llm_client", lambda: called.__setitem__("llm", True) or MockLLMClient())
+        monkeypatch.setattr(cli_main, "_build_data_provider", lambda: called.__setitem__("data", True) or MockDataProvider())
+
+        exit_code = main(["analyze", "--code", "600519", "--risk-preference", "reckless"])
+        captured = capsys.readouterr()
+        assert exit_code == 2
+        assert "风险偏好" in captured.err
+        assert called["llm"] is False
+        assert called["data"] is False
 
 
 # ═══════════════════════════════════════════════════════════════

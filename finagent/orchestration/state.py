@@ -27,6 +27,7 @@ class PipelineState:
         position_status: 持仓状态 (none/holding)
         debate_rounds: 多空辩论轮次上限
         risk_rounds: 风控讨论轮次上限
+        risk_preference: 风险偏好 (aggressive/neutral/conservative, 默认 neutral)
 
         # Step 1 产出
         stock_name: 证券简称
@@ -85,6 +86,7 @@ class PipelineState:
     shares: Optional[int] = None  # 持仓股数（仅 holding 时生效）
     debate_rounds: int = 2
     risk_rounds: int = 2
+    risk_preference: str = "neutral"
 
     # ── Step 1: 输入校验 ─────────────────────────────────
     stock_name: str = ""
@@ -267,6 +269,7 @@ class PipelineState:
             "analysis_date": self.analysis_date,
             "capital": self.capital,
             "position_status": self.position_status,
+            "risk_preference": self.risk_preference,
             "decision": decision if isinstance(decision, dict) else {},
             "position_desc": _tier_desc(decision.get("position_tier", 0) if isinstance(decision, dict) else 0),
             "target_price": str(decision.get("target", "")) if isinstance(decision, dict) else "",

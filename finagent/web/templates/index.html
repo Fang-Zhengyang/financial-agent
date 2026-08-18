@@ -82,6 +82,14 @@
                             <option value="3">3 轮</option>
                         </select>
                     </div>
+                    <div class="form-field">
+                        <label for="f-risk-pref">风险偏好</label>
+                        <select id="f-risk-pref" name="risk_preference">
+                            <option value="conservative">保守（conservative）</option>
+                            <option value="neutral" selected>中立（neutral）</option>
+                            <option value="aggressive">激进（aggressive）</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="submit" id="analyze-btn" class="btn btn-primary">开始分析</button>
@@ -147,6 +155,13 @@
                     <div class="card-label">仓位档位</div>
                     <div class="card-value tier-value">档位 {{ decision.position_tier.value }}</div>
                     <div class="card-sub">{{ tier_label }}</div>
+                </div>
+
+                <!-- 风险偏好卡片 -->
+                <div class="signal-card">
+                    <div class="card-label">风险偏好</div>
+                    <div class="card-value risk-pref-value">{{ risk_preference_label or decision.risk_preference }}</div>
+                    <div class="card-sub">{{ decision.risk_preference }}</div>
                 </div>
 
                 <!-- 置信度卡片 -->
@@ -528,6 +543,7 @@
             var sharesInput = $('f-shares');
             var debateSelect = $('f-debate');
             var riskSelect = $('f-risk');
+            var riskPrefSelect = $('f-risk-pref');
             var fields = form.querySelectorAll('input, select, button');
             var pollTimer = null;
 
@@ -595,6 +611,7 @@
                     shares: sharesInput.value,
                     debate_rounds: debateSelect.value,
                     risk_rounds: riskSelect.value,
+                    risk_preference: riskPrefSelect.value,
                 };
                 try { localStorage.setItem(STORAGE_KEY, JSON.stringify(params)); } catch (e) {}
             }
@@ -613,6 +630,7 @@
                 if (p.shares !== undefined && p.shares !== '') sharesInput.value = p.shares;
                 if (p.debate_rounds) debateSelect.value = p.debate_rounds;
                 if (p.risk_rounds) riskSelect.value = p.risk_rounds;
+                if (p.risk_preference) riskPrefSelect.value = p.risk_preference;
             }
 
             /* 即时校验：资金 / 成本价 / 持有股数 */
@@ -716,6 +734,7 @@
                 body.set('position_status', positionSelect.value);
                 body.set('debate_rounds', debateSelect.value);
                 body.set('risk_rounds', riskSelect.value);
+                body.set('risk_preference', riskPrefSelect.value);
                 if (holding && costPrice) body.set('cost_price', costPrice);
                 if (holding && sharesVal) body.set('shares', sharesVal);
 

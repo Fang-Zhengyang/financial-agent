@@ -35,6 +35,7 @@ from finagent.cli.main import (
     validate_code_format,
     validate_cost_price,
     validate_position_status,
+    validate_risk_preference,
     validate_rounds,
     validate_shares,
 )
@@ -533,6 +534,13 @@ _TIER_LABEL = {
     3: "75% · 重仓",
 }
 
+# 风险偏好 → 中文标签（信号卡/表单展示）
+_RISK_PREFERENCE_LABEL = {
+    "aggressive": "激进",
+    "neutral": "中立",
+    "conservative": "保守",
+}
+
 
 # ── 路由 ────────────────────────────────────────────────
 
@@ -585,10 +593,14 @@ async def index(request: Request):
     signal_class = ""
     signal_label = ""
     tier_label = ""
+    risk_preference_label = ""
     if decision:
         signal_class = _SIGNAL_CLASS.get(decision.signal.value, "")
         signal_label = _SIGNAL_LABEL.get(decision.signal.value, decision.signal.value)
         tier_label = _TIER_LABEL.get(decision.position_tier.value, str(decision.position_tier.value))
+        risk_preference_label = _RISK_PREFERENCE_LABEL.get(
+            decision.risk_preference, decision.risk_preference
+        )
 
     # 手动渲染模板，避免 Starlette Jinja2Templates 的缓存问题
     template = _jinja2_env.get_template("index.html")
@@ -604,6 +616,7 @@ async def index(request: Request):
         signal_class=signal_class,
         signal_label=signal_label,
         tier_label=tier_label,
+        risk_preference_label=risk_preference_label,
     )
 
     return HTMLResponse(
@@ -1172,6 +1185,7 @@ def _spawn_analysis(
     risk_rounds: int,
     cost_price: Optional[float] = None,
     shares: Optional[int] = None,
+    risk_preference: str = "neutral",
 ) -> None:
     """在后台线程跑 subprocess CLI 分析，完成后更新任务状态。"""
     cmd = [
@@ -1181,6 +1195,7 @@ def _spawn_analysis(
         "--position-status", position_status,
         "--debate-rounds", str(debate_rounds),
         "--risk-rounds", str(risk_rounds),
+        "--risk-preference", risk_preference,
     ]
     if cost_price is not None:
         cmd += ["--cost-price", f"{cost_price:g}"]
@@ -1230,6 +1245,7 @@ def analyze(
     position_status: str = Form("none"),
     debate_rounds: str = Form(str(DEFAULT_DEBATE_ROUNDS)),
     risk_rounds: str = Form(str(DEFAULT_RISK_ROUNDS)),
+    risk_preference: str = Form("neutral"),
     cost_price: str = Form(""),
     shares: str = Form(""),
 ):
@@ -1253,6 +1269,11 @@ def analyze(
         return JSONResponse(
             status_code=400, content={"detail": f"风控轮次必须为整数，收到 '{risk_rounds}'"}
         )
+    # 风险偏好：规范化（支持中文别名），非法值给中文错误
+    try:
+        risk_pref = validate_risk_preference(risk_preference)
+    except CliValidationError as e:
+        return JSONResponse(status_code=400, content={"detail": str(e)})
     # 成本价：空串 → None（未提供）；非空则解析为 float
     cost_price_f: Optional[float] = None
     if cost_price.strip() != "":
@@ -1303,7 +1324,7 @@ def analyze(
         }
     _spawn_analysis(
         task_id, code, capital_f, position_status, debate_rounds_i, risk_rounds_i,
-        cost_price_f, shares_i,
+        cost_price_f, shares_i, risk_pref,
     )
 
     return JSONResponse(status_code=202, content={"task_id": task_id, "status": "running"})
