@@ -237,6 +237,7 @@ def step_2_data(state: PipelineState, **deps: Any) -> None:
         ("north", "get_north", lambda p: p.get_north(code)),
         ("pe_percentile", "get_pe_percentile", lambda p: p.get_pe_percentile(code)),
         ("dazong", "get_dazong", lambda p: p.get_dazong(code)),
+        ("future_events", "get_future_events", lambda p: p.get_future_events(code)),
     ]
 
     for key, _method, fetcher in fetchers:
@@ -999,7 +1000,7 @@ def _build_analyst_context(state: PipelineState, role_id: str) -> dict[str, Any]
         "fundamentals": ["financials", "valuation", "st_risk",
                          "jiejin", "holder", "pe_percentile"],
         "technical": ["kline", "realtime_quote"],
-        "news": ["news", "announcements"],
+        "news": ["news", "announcements", "future_events"],
         "capital_flow": ["capital_flow", "margin_trading", "lhb", "north", "dazong"],
     }
 
@@ -1039,6 +1040,7 @@ _SECTION_TITLES: dict[str, str] = {
     "lhb": "龙虎榜",
     "north": "北向资金",
     "dazong": "大宗交易",
+    "future_events": "前瞻事件（未来 3 个月）",
 }
 
 

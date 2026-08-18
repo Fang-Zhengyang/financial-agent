@@ -245,3 +245,19 @@ class DazongData(BaseModel):
     items: list[DazongItem]
     source: str
     cache_time: Optional[datetime] = None
+
+
+# ── D17: 前瞻事件（未来 3 个月，业绩预告/预约披露/股东大会/解禁/分红）──
+
+class FutureEventItem(BaseModel):
+    event_date: date          # 事件日期（财报披露日/股东大会日/解禁日/除权除息日）
+    event_type: str           # 事件类型：预约披露/业绩预告/股东大会/限售解禁/分红除权
+    title: str                # 事件标题/摘要
+    detail: str = ""          # 补充说明（如预告类型、解禁比例）
+
+
+class FutureEventsData(BaseModel):
+    code: str
+    items: list[FutureEventItem]
+    source: str
+    cache_time: Optional[datetime] = None

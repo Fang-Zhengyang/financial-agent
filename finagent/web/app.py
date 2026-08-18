@@ -95,6 +95,11 @@ async def _lifespan(app: FastAPI):
 
 
 # ── FastAPI app ─────────────────────────────────────────
+# Windows 安装版：加载项目根 .env（DEEPSEEK_API_KEY），保证子进程 CLI 可继承
+from finagent.env_loader import load_env_file as _load_env_file
+
+_load_env_file()
+
 app = FastAPI(
     title="交易决策金融 Agent",
     description="本地 Web 展示 — 最近一次分析结果",
@@ -1049,6 +1054,25 @@ def _read_dazong(code: str) -> dict:
     return {"items": items}
 
 
+def _read_future_events(code: str) -> dict:
+    """读前瞻事件（future_events 表），返回未来 3 个月事件列表（升序）。
+
+    无数据 → 空列表。字段：event_date/event_type/title/detail。
+    """
+    rows = _read_cache_rows("future_events", code, order_by="event_date")
+    rows.reverse()  # 升序（近 → 远）
+    items = [
+        {
+            "event_date": str(r.get("event_date")),
+            "event_type": r.get("event_type") or "",
+            "title": r.get("title") or "",
+            "detail": r.get("detail") or "",
+        }
+        for r in rows
+    ]
+    return {"items": items}
+
+
 @app.get("/analysis-data")
 def get_analysis_data(code: str, date: Optional[str] = None):
     """返回该次分析的结构化指标 JSON（字段齐全、缺失置 null）。
@@ -1092,6 +1116,8 @@ def get_analysis_data(code: str, date: Optional[str] = None):
         # 阶段Ⅱ+ 新增：盘面活跃度快照（量比/换手率）+ 大宗交易明细
         "trading_snapshot": _read_trading_snapshot(code),
         "dazong": _read_dazong(code),
+        # 阶段Ⅲ 新增：前瞻事件（未来 3 个月）
+        "future_events": _read_future_events(code),
     }
 
 

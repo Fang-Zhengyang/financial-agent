@@ -48,9 +48,9 @@ roles:
     llm_layer: quick
     name: "新闻舆情分析师"
     description: "跟踪近期新闻、公告和政策事件，分析市场情绪和舆情方向。"
-    tools: [get_news, get_announcements]
+    tools: [get_news, get_announcements, get_future_events]
     output_format: free_text
-    context_inject: [news, announcements]
+    context_inject: [news, announcements, future_events]
     max_tool_calls: 5
     prompt_module: analysts
 

@@ -66,6 +66,9 @@ class RecordingProvider:
     def get_pe_percentile(self, code):
         return self._call("get_pe_percentile", code)
 
+    def get_future_events(self, code):
+        return self._call("get_future_events", code)
+
 
 class TestPreheatStock:
     def test_preheat_calls_all_types(self):
@@ -75,9 +78,10 @@ class TestPreheatStock:
             "kline", "realtime", "capital_flow", "margin", "financials",
             "valuation", "news", "announcements", "st_risk",
             "lhb", "jiejin", "holder", "north", "pe_percentile",
+            "future_events",
         }
         assert all(result.values())
-        assert len(p.calls) == 14
+        assert len(p.calls) == 15
 
     def test_single_failure_does_not_abort_others(self):
         p = RecordingProvider(failing=("get_lhb",))
@@ -110,7 +114,7 @@ class TestPreheatAsync:
         t.join(timeout=5)  # 等待后台线程完成
         assert not t.is_alive()
         assert "get_kline" in p.calls
-        assert len(p.calls) == 14
+        assert len(p.calls) == 15
 
 
 class TestRecentlyAnalyzedCodes:

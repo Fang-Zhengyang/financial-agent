@@ -38,6 +38,7 @@ from finagent.data.ttl import (
     TTL_CALENDAR,
     TTL_DAZONG,
     TTL_FINANCIALS,
+    TTL_FUTURE_EVENTS,
     TTL_HOLDER,
     TTL_JIEJIN,
     TTL_KLINES,
@@ -56,6 +57,8 @@ from finagent.data.schemas import (
     DazongData,
     DazongItem,
     FinancialIndicators,
+    FutureEventItem,
+    FutureEventsData,
     HolderData,
     JiejinData,
     JiejinItem,
@@ -105,13 +108,27 @@ def _market(code: str) -> str:
 
 
 def _to_date(val) -> Optional[date]:
-    """Coerce *val* to a ``datetime.date``.  Returns ``None`` on failure."""
+    """Coerce *val* to a ``datetime.date``.  Returns ``None`` on failure/NaT.
+
+    注意：pandas 的 ``NaT`` 是 ``datetime`` 子类（``isinstance(pd.NaT, date)``
+    为 True），且 ``pd.Timestamp(nan).date()`` 返回 ``NaT`` 而非抛异常；若不做
+    NaN/NaT 检查，``_to_date(nan)`` 会返回 ``NaT``，后续 ``NaT < date`` 比较抛
+    ``TypeError``。这里显式排除。
+    """
     if val is None:
         return None
     if isinstance(val, date):
+        try:
+            if pd.isna(val):
+                return None
+        except (TypeError, ValueError):
+            pass
         return val
     try:
-        return pd.Timestamp(val).date()
+        ts = pd.Timestamp(val)
+        if pd.isna(ts):
+            return None
+        return ts.date()
     except (ValueError, TypeError):
         return None
 
@@ -142,6 +159,40 @@ def _clean_news_text(text: str) -> str:
     text = text.replace("\u3000", " ")          # 全角空格 → 半角
     text = text.replace("\r\n", " ").replace("\n", " ")
     return text.strip()
+
+
+def _code_match(val, code: str) -> bool:
+    """股票代码宽松匹配（akshare 返回的代码可能是 str/int/带 .0 的 float）。"""
+    if val is None:
+        return False
+    s = str(val).strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    return s.zfill(6) == code
+
+
+def _current_report_period(today: date) -> str:
+    """当前报告期（最近的季度末 <= today），形如 ``20260630``。"""
+    y = today.year
+    if today.month <= 3:
+        return f"{y - 1}1231"   # 年报
+    if today.month <= 6:
+        return f"{y}0331"       # 一季报
+    if today.month <= 9:
+        return f"{y}0630"       # 中报
+    return f"{y}0930"           # 三季报
+
+
+def _next_report_period(today: date) -> str:
+    """下一个报告期（下一个季度末），形如 ``20260930``，用于前瞻业绩预告。"""
+    y = today.year
+    if today.month <= 3:
+        return f"{y}0331"
+    if today.month <= 6:
+        return f"{y}0630"
+    if today.month <= 9:
+        return f"{y}0930"
+    return f"{y + 1}1231"
 
 
 # ---------------------------------------------------------------------------
@@ -1223,6 +1274,192 @@ class AkshareAdapter(DataProvider):
             for _, r in df.iterrows()
         ]
         return DazongData(code=code, items=items, source="akshare")
+
+    # ==================================================================
+    # D17: 前瞻事件（未来 3 个月：预约披露/业绩预告/股东大会/解禁/分红）
+    # ==================================================================
+
+    def get_future_events(self, code: str) -> Optional[FutureEventsData]:
+        cache_table = "future_events"
+        cache_key = {"code": code}
+
+        cached = self._cache.get(cache_table, cache_key, TTL_FUTURE_EVENTS)
+        if cached is not None:
+            return self._df_to_future_events(code, cached)
+
+        try:
+            import akshare as ak
+
+            today = date.today()
+            horizon = today + timedelta(days=90)
+            items: list[FutureEventItem] = []
+
+            # ① 预约披露时间（当前报告期，未来披露日期）
+            items.extend(self._future_disclosure_items(
+                ak, code, _current_report_period(today), today, horizon))
+            # ② 业绩预告（下一报告期，前瞻）
+            items.extend(self._future_forecast_items(
+                ak, code, _next_report_period(today)))
+            # ③ 股东大会
+            items.extend(self._future_shareholder_meeting_items(
+                ak, code, today, horizon))
+            # ④ 限售解禁（复用 get_jiejin 的未来 90 天批次）
+            jj = self.get_jiejin(code)
+            if jj is not None:
+                for it in jj.items:
+                    items.append(FutureEventItem(
+                        event_date=it.free_date,
+                        event_type="限售解禁",
+                        title=f"限售解禁 {it.free_shares:g} 万股",
+                        detail=f"占总股本 {it.ratio:g}%",
+                    ))
+            # ⑤ 分红除权除息日
+            items.extend(self._future_dividend_items(ak, code, today, horizon))
+
+            # 去重（同类型同日期）+ 按日期升序
+            seen: set[tuple[str, str]] = set()
+            dedup: list[FutureEventItem] = []
+            for it in items:
+                key = (it.event_type, str(it.event_date))
+                if key in seen:
+                    continue
+                seen.add(key)
+                dedup.append(it)
+            dedup.sort(key=lambda x: x.event_date)
+
+            if dedup:
+                df_cache = pd.DataFrame([{
+                    "code": code,
+                    "event_date": str(it.event_date),
+                    "event_type": it.event_type,
+                    "title": it.title,
+                    "detail": it.detail,
+                } for it in dedup])
+                self._cache.put(cache_table, cache_key, df_cache)
+            return FutureEventsData(code=code, items=dedup, source=self.name)
+        except Exception as exc:
+            _log_fail("前瞻事件", code, exc)
+            return None
+
+    @staticmethod
+    def _future_disclosure_items(
+        ak, code: str, period: str, today: date, horizon: date,
+    ) -> list[FutureEventItem]:
+        """① 预约披露时间（stock_yysj_em），未来披露日期。"""
+        try:
+            df = ak.stock_yysj_em(symbol="沪深A股", date=period)
+        except Exception:
+            return []
+        if df is None or df.empty or "股票代码" not in df.columns:
+            return []
+        items: list[FutureEventItem] = []
+        for _, r in df.iterrows():
+            if not _code_match(r.get("股票代码"), code):
+                continue
+            # 优先未来首次预约时间，否则未来实际披露时间
+            d = _to_date(r.get("首次预约时间"))
+            if d is None or d < today:
+                d = _to_date(r.get("实际披露时间"))
+            if d is None or d < today or d > horizon:
+                continue
+            name = str(r.get("股票简称") or "")
+            items.append(FutureEventItem(
+                event_date=d,
+                event_type="预约披露",
+                title=f"{name or code} 预约披露财报",
+                detail=f"报告期 {period[:4]}-{period[4:6]}-{period[6:]}",
+            ))
+        return items
+
+    @staticmethod
+    def _future_forecast_items(ak, code: str, period: str) -> list[FutureEventItem]:
+        """② 业绩预告（stock_yjyg_em），下一报告期的前瞻预告。"""
+        try:
+            df = ak.stock_yjyg_em(date=period)
+        except Exception:
+            return []
+        if df is None or df.empty or "股票代码" not in df.columns:
+            return []
+        items: list[FutureEventItem] = []
+        # 报告期结束日 = 事件日期（下一季度末，前瞻锚点）
+        d = _to_date(f"{period[:4]}-{period[4:6]}-{period[6:]}")
+        for _, r in df.iterrows():
+            if not _code_match(r.get("股票代码"), code):
+                continue
+            yj_type = str(r.get("预告类型") or "").strip()
+            change = str(r.get("业绩变动") or "").strip()
+            items.append(FutureEventItem(
+                event_date=d,
+                event_type="业绩预告",
+                title=f"业绩预告（{yj_type or '未披露类型'}）",
+                detail=change[:120],
+            ))
+            break  # 每只股票取首条即可
+        return items
+
+    @staticmethod
+    def _future_shareholder_meeting_items(
+        ak, code: str, today: date, horizon: date,
+    ) -> list[FutureEventItem]:
+        """③ 股东大会（stock_gddh_em），未来召开日期。"""
+        try:
+            df = ak.stock_gddh_em()
+        except Exception:
+            return []
+        if df is None or df.empty or "代码" not in df.columns:
+            return []
+        items: list[FutureEventItem] = []
+        for _, r in df.iterrows():
+            if not _code_match(r.get("代码"), code):
+                continue
+            d = _to_date(r.get("召开开始日"))
+            if d is None or d < today or d > horizon:
+                continue
+            title = str(r.get("股东大会名称") or f"{code} 股东大会")
+            items.append(FutureEventItem(
+                event_date=d,
+                event_type="股东大会",
+                title=title,
+            ))
+        return items
+
+    @staticmethod
+    def _future_dividend_items(
+        ak, code: str, today: date, horizon: date,
+    ) -> list[FutureEventItem]:
+        """⑤ 分红除权除息日（stock_fhps_detail_em），未来除权日期。"""
+        try:
+            df = ak.stock_fhps_detail_em(symbol=code)
+        except Exception:
+            return []
+        if df is None or df.empty or "除权除息日" not in df.columns:
+            return []
+        items: list[FutureEventItem] = []
+        for _, r in df.iterrows():
+            d = _to_date(r.get("除权除息日"))
+            if d is None or d < today or d > horizon:
+                continue
+            plan = str(r.get("现金分红-现金分红比例描述") or "").strip()
+            items.append(FutureEventItem(
+                event_date=d,
+                event_type="分红除权",
+                title="除权除息日",
+                detail=plan[:120],
+            ))
+        return items
+
+    @staticmethod
+    def _df_to_future_events(code: str, df: pd.DataFrame) -> FutureEventsData:
+        items = [
+            FutureEventItem(
+                event_date=_to_date(r.get("event_date")),
+                event_type=str(r.get("event_type") or ""),
+                title=str(r.get("title") or ""),
+                detail=str(r.get("detail") or ""),
+            )
+            for _, r in df.iterrows()
+        ]
+        return FutureEventsData(code=code, items=items, source="akshare")
 
     # ==================================================================
     # Deserialisation helpers (cache → Pydantic)

@@ -19,15 +19,16 @@ from typing import Any, Optional
 
 from finagent.data.provider import DataProvider
 from finagent.data.timeout import (
-    DEFAULT_TIMEOUT,
     DataSourceTimeoutError,
     run_with_timeout,
+    timeout_for,
 )
 from finagent.data.schemas import (
     AnnouncementData,
     CapitalFlow,
     DazongData,
     FinancialIndicators,
+    FutureEventsData,
     HolderData,
     JiejinData,
     KlineData,
@@ -82,7 +83,7 @@ FALLBACK_CHAIN: dict[str, list[str]] = {
     "margin":        ["akshare"],                             # D4
     "financials":    ["baostock", "akshare"],                 # D5
     "valuation":     ["akshare", "baostock"],                 # D6
-    "news":          ["akshare", "eastmoney"],                # D7
+    "news":          ["akshare", "cls", "sina"],           # D7 新闻多源
     "announcements": ["eastmoney", "akshare"],                # D8
     "st_risk":       ["akshare", "eastmoney"],                # D9
     "calendar":      ["akshare"],                             # D10
@@ -93,7 +94,18 @@ FALLBACK_CHAIN: dict[str, list[str]] = {
     "north":         ["akshare"],                             # D14 北向资金
     "pe_percentile": ["akshare"],                             # D15 行业PE分位
     "dazong":        ["akshare"],                             # D16 大宗交易
+    "future_events": ["akshare"],                             # D17 前瞻事件
 }
+
+# 新闻降级链说明（阶段Ⅲ 多源扩展）：
+#   akshare = 东财个股新闻（stock_news_em + 直连东财搜索 API，主源）
+#   cls     = 财联社电报（stock_info_global_cls，独立第三方备源，按关键词过滤）
+#   sina    = 新浪全球快讯（stock_info_global_sina，独立第三方备源，按关键词过滤）
+# 理由：原链 ["akshare", "eastmoney"] 中 eastmoney adapter 的 get_news 恒返回
+# None（死条目），实际仅 akshare 一条有效源（且其底层仍是东财），东财限流时
+# 新闻全源失败。财联社/新浪为独立第三方快讯源，加入链尾作冗余。akshare 的
+# stock_news_sina 在 akshare 1.18.87 不存在，故新浪备源用 stock_info_global_sina
+# 全市场快讯 + 关键词过滤实现（见 sina_adapter.get_news docstring）。
 
 # Mapping from data-type key to the DataProvider method name.
 _METHOD_MAP: dict[str, str] = {
@@ -113,6 +125,7 @@ _METHOD_MAP: dict[str, str] = {
     "north":         "get_north",
     "pe_percentile": "get_pe_percentile",
     "dazong":        "get_dazong",
+    "future_events": "get_future_events",
 }
 
 # 10 类「必需」数据种类（阶段Ⅰ，失败会被 gather_bundle 记为 errors）。
@@ -121,9 +134,9 @@ _MANDATORY_TYPES: list[str] = [
     "valuation", "news", "announcements", "st_risk", "calendar",
 ]
 
-# 6 类「可选」扩展数据种类（阶段Ⅱ+，失败不阻断、不记 errors）。
+# 7 类「可选」扩展数据种类（阶段Ⅱ+，失败不阻断、不记 errors）。
 _EXTENDED_TYPES: list[str] = [
-    "lhb", "jiejin", "holder", "north", "pe_percentile", "dazong",
+    "lhb", "jiejin", "holder", "north", "pe_percentile", "dazong", "future_events",
 ]
 
 
@@ -162,12 +175,14 @@ class FallbackDataProvider:
         adapters: dict[str, DataProvider],
         chain: Optional[dict[str, list[str]]] = None,
         cache: Optional[Any] = None,
-        timeout: float = DEFAULT_TIMEOUT,
+        timeout: Optional[float] = None,
     ) -> None:
         self._adapters: dict[str, DataProvider] = adapters
         self._chain: dict[str, list[str]] = chain or FALLBACK_CHAIN
         self._cache = cache
-        self._timeout = float(timeout)
+        # None = 按数据类型查 TIMEOUT_TABLE（生产默认）；显式传 float 时全局
+        # 覆盖（测试用它把超时设小以验证「超时即放弃 + 降级」语义）。
+        self._timeout = float(timeout) if timeout is not None else None
         self._listener: Optional[Any] = None
 
         # Validate that every name in every chain entry maps to an adapter.
@@ -202,6 +217,12 @@ class FallbackDataProvider:
 
     # ── helpers ──────────────────────────────────────────────────
 
+    def _timeout_for(self, dtype: str) -> float:
+        """返回 *dtype* 的墙钟超时：显式 override 优先，否则按超时配置表。"""
+        if self._timeout is not None:
+            return self._timeout
+        return timeout_for(dtype)
+
     def _try_chain(
         self,
         dtype: str,
@@ -210,11 +231,11 @@ class FallbackDataProvider:
     ) -> Any:
         """Iterate adapters in priority order for *dtype*.
 
-        Each adapter call runs under a wall-clock timeout
-        (:data:`finagent.data.timeout.DEFAULT_TIMEOUT`, default 30s).  A single
+        Each adapter call runs under a per-type wall-clock timeout
+        (:func:`finagent.data.timeout.timeout_for`, default 60s).  A single
         source that hangs (e.g. eastmoney push2 IP 限流) is abandoned after the
         timeout and the chain moves to the next source.  Timeouts are recorded
-        as「数据源 X 超时(30s)，降级到 Y」via the optional listener.
+        as「数据源 X 超时(Ns)，降级到 Y」via the optional listener.
 
         Returns the first non-``None`` result.  Raises
         :class:`DataUnavailableError` when every adapter fails.
@@ -238,7 +259,9 @@ class FallbackDataProvider:
                 missing.append(f"{name}(no method {method_name})")
                 continue
             try:
-                result = run_with_timeout(method, self._timeout, *args, **kwargs)
+                result = run_with_timeout(
+                    method, self._timeout_for(dtype), *args, **kwargs
+                )
                 if result is not None:
                     return result
                 missing.append(name)
@@ -352,6 +375,10 @@ class FallbackDataProvider:
         """D16 — 大宗交易, akshare."""
         return self._try_chain("dazong", code)
 
+    def get_future_events(self, code: str) -> FutureEventsData:
+        """D17 — 前瞻事件（未来 3 个月）, akshare."""
+        return self._try_chain("future_events", code)
+
 
 # ═══════════════════════════════════════════════════════════════════
 # Hard-coded trade calendar fallback (D10)
@@ -449,6 +476,7 @@ class DataBundle:
     north: Optional[NorthData] = None
     pe_percentile: Optional[PEPercentileData] = None
     dazong: Optional[DazongData] = None
+    future_events: Optional[FutureEventsData] = None
 
     # ── metadata ────────────────────────────────────────────────
 
@@ -590,6 +618,7 @@ def gather_bundle(
         "north":         {"code": code},
         "pe_percentile": {"code": code},
         "dazong":        {"code": code},
+        "future_events": {"code": code},
     }
 
     all_missing: dict[str, list[str]] = {}

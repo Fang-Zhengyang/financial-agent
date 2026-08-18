@@ -32,6 +32,7 @@ __all__ = [
     "TTL_NORTH",
     "TTL_PE_PERCENTILE",
     "TTL_DAZONG",
+    "TTL_FUTURE_EVENTS",
     "post_market_ttl",
     "TABLE_TTL",
     "TTL_TABLE",
@@ -53,6 +54,7 @@ TTL_HOLDER = timedelta(days=1)          # 股东户数：每日更新
 TTL_NORTH = timedelta(days=1)           # 北向资金：每日盘后更新
 TTL_PE_PERCENTILE = timedelta(days=1)   # 行业 PE 分位：每日更新
 TTL_DAZONG = timedelta(days=1)          # 大宗交易：每日盘后更新
+TTL_FUTURE_EVENTS = timedelta(days=1)   # 前瞻事件：每日盘后更新（财报/股东大会/解禁日程）
 
 # 盘后动态 TTL 的下限（收盘后到次日开盘通常 >4 小时；刚收盘时的兜底值）。
 TTL_QUOTE_MIN = timedelta(hours=4)
@@ -129,6 +131,7 @@ TABLE_TTL: dict[str, object] = {
     "north": TTL_NORTH,
     "pe_percentile": TTL_PE_PERCENTILE,
     "dazong": TTL_DAZONG,
+    "future_events": TTL_FUTURE_EVENTS,
 }
 
 
@@ -173,4 +176,5 @@ TTL_TABLE: dict[str, tuple[str, str]] = {
     "北向资金 (north)": (_fmt(TTL_NORTH), "每日盘后更新"),
     "行业PE分位 (pe_percentile)": (_fmt(TTL_PE_PERCENTILE), "每日更新"),
     "大宗交易 (dazong)": (_fmt(TTL_DAZONG), "每日盘后更新"),
+    "前瞻事件 (future_events)": (_fmt(TTL_FUTURE_EVENTS), "每日盘后更新"),
 }

@@ -203,9 +203,102 @@ class TestFallbackTimeout:
         with pytest.raises(DataUnavailableError):
             p.get_kline("600519")
 
-    def test_default_timeout_is_30(self) -> None:
+    def test_default_timeout_is_60(self) -> None:
         p = FallbackDataProvider(adapters={})
-        assert p._timeout == DEFAULT_TIMEOUT == 30.0
+        assert DEFAULT_TIMEOUT == 60.0
+        # None = 按数据类型查 TIMEOUT_TABLE（生产默认），而非固定单值
+        assert p._timeout is None
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 阶段Ⅲ：按数据类型差异化的超时配置表
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestTimeoutConfigTable:
+    """超时配置表：实时 30s / K线·新闻·公告 60s / 财务·估值·融资融券·扩展 90s。"""
+
+    def test_per_type_timeout_values(self) -> None:
+        from finagent.data.timeout import timeout_for
+
+        # 实时行情/快照类 30s 保持
+        assert timeout_for("realtime") == 30.0
+        assert timeout_for("capital_flow") == 30.0
+        assert timeout_for("st_risk") == 30.0
+        # K线 / 新闻 / 公告 60s
+        assert timeout_for("kline") == 60.0
+        assert timeout_for("news") == 60.0
+        assert timeout_for("announcements") == 60.0
+        # 财务 / 估值 / 融资融券 90s
+        assert timeout_for("financials") == 90.0
+        assert timeout_for("valuation") == 90.0
+        assert timeout_for("margin") == 90.0
+        # 大宗 / 龙虎榜 / 北向 / 前瞻事件 90s
+        assert timeout_for("lhb") == 90.0
+        assert timeout_for("jiejin") == 90.0
+        assert timeout_for("north") == 90.0
+        assert timeout_for("dazong") == 90.0
+        assert timeout_for("future_events") == 90.0
+        # 未登记类型默认 60s
+        assert timeout_for("unknown_type") == DEFAULT_TIMEOUT == 60.0
+
+    def test_doc_table_covers_each_type(self) -> None:
+        from finagent.data.timeout import TIMEOUT_DOC_TABLE
+
+        assert TIMEOUT_DOC_TABLE, "超时文档表不应为空"
+        for k, v in TIMEOUT_DOC_TABLE.items():
+            assert isinstance(v, tuple) and len(v) == 2, k
+            assert v[1], f"{k} 缺少理由"
+
+    def test_fallback_timeout_for_uses_table(self) -> None:
+        """FallbackDataProvider._timeout_for：未显式覆盖时按类型查表。"""
+        p = FallbackDataProvider(adapters={})
+        assert p._timeout_for("financials") == 90.0
+        assert p._timeout_for("realtime") == 30.0
+        assert p._timeout_for("news") == 60.0
+        assert p._timeout_for("unknown") == 60.0
+
+    def test_explicit_timeout_overrides_table(self) -> None:
+        """显式传 timeout 时全局覆盖（测试用它把超时设小）。"""
+        p = FallbackDataProvider(adapters={}, timeout=0.3)
+        assert p._timeout_for("financials") == 0.3
+        assert p._timeout_for("realtime") == 0.3
+
+    def test_chain_uses_per_type_timeout(self, monkeypatch) -> None:
+        """验证 _try_chain 实际调用 timeout_for（而非旧的固定 self._timeout）。
+
+        monkeypatch timeout_for 返回极小超时 → 挂死的财务源应快速降级到备源。
+        """
+        import finagent.data.fallback as fb
+        from finagent.data.schemas import FinancialIndicators
+
+        def mk_fin(source: str = "backup") -> FinancialIndicators:
+            return FinancialIndicators(
+                code="600519", roe=0.3, revenue_yoy=0.1, net_profit_yoy=0.1,
+                gross_margin=0.9, debt_ratio=0.2, eps=1.0, source=source,
+            )
+
+        class HangFin(_BaseMock):
+            def get_financials(self, code, **kw):
+                time.sleep(10)  # 挂死
+
+        class BackupFin(_BaseMock):
+            def get_financials(self, code, **kw):
+                return mk_fin("backup")
+
+        monkeypatch.setattr(fb, "timeout_for", lambda dtype: 0.2)
+        p = fb.FallbackDataProvider(
+            adapters={"hang": HangFin("hang"), "backup": BackupFin("backup")},
+            chain={"financials": ["hang", "backup"]},
+        )
+
+        t0 = time.monotonic()
+        result = p.get_financials("600519")
+        elapsed = time.monotonic() - t0
+
+        assert result is not None
+        assert result.source == "backup"
+        assert elapsed < 5, "应使用 timeout_for 返回的短超时快速降级"
 
 
 # ═══════════════════════════════════════════════════════════════════

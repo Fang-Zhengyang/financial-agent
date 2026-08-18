@@ -292,6 +292,17 @@
         </section>
         {% endif %}
 
+        <!-- ═══ 前瞻事件（未来 3 个月） ═══ -->
+        {% if has_analysis %}
+        <section class="section" id="section-future-events">
+            <h2 class="section-title">
+                <span class="section-icon">🔮</span> 前瞻事件
+                <span class="section-count">未来 3 个月</span>
+            </h2>
+            <div id="future-events-list"></div>
+        </section>
+        {% endif %}
+
         <!-- ═══ 第 2 区：研究报告（总分总分块，每块可折叠） ═══ -->
         {% if has_analysis and report_blocks %}
         <section class="section" id="section-report">
@@ -435,6 +446,13 @@
         /* ── 工具函数 ─────────────────────────────────────── */
 
         function $(id) { return document.getElementById(id); }
+
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
 
         function currentCode() {
             return document.body.getAttribute('data-code') || '';
@@ -1233,6 +1251,38 @@
             }
         }
 
+        function renderFutureEvents(d) {
+            var el = $('future-events-list');
+            if (!el) return;
+            var fe = (d.future_events && d.future_events.items) || [];
+            if (!fe.length) {
+                el.innerHTML = '<div class="chart-empty">暂无未来 3 个月前瞻事件数据</div>';
+                return;
+            }
+            var typeCls = {
+                '预约披露': 'fe-disclosure',
+                '业绩预告': 'fe-forecast',
+                '股东大会': 'fe-meeting',
+                '限售解禁': 'fe-unlock',
+                '分红除权': 'fe-dividend',
+            };
+            var html = '<ul class="future-events-list">';
+            for (var i = 0; i < fe.length; i++) {
+                var e = fe[i];
+                var cls = typeCls[e.event_type] || 'fe-other';
+                var detail = e.detail
+                    ? ' <span class="fe-detail">' + escapeHtml(e.detail) + '</span>' : '';
+                html += '<li class="fe-item">' +
+                    '<span class="fe-date">' + escapeHtml(e.event_date || '') + '</span>' +
+                    '<span class="fe-type ' + cls + '">' + escapeHtml(e.event_type || '') + '</span>' +
+                    '<span class="fe-title">' + escapeHtml(e.title || '') + '</span>' +
+                    detail +
+                    '</li>';
+            }
+            html += '</ul>';
+            el.innerHTML = html;
+        }
+
         function initAnalysisData() {
             var code = currentCode();
             if (!code) return;
@@ -1249,6 +1299,7 @@
                     renderRsiChart(res.data);
                     renderMacdChart(res.data);
                     renderFundFlow(res.data);
+                    renderFutureEvents(res.data);
                 })
                 .catch(function () {});
         }

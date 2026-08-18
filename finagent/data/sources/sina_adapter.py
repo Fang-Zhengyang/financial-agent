@@ -42,8 +42,14 @@ import requests
 from finagent.compute import LimitPriceInput, board_name_of_code, compute_limit_price
 from finagent.data.cache import AkshareCache
 from finagent.data.provider import DataProvider
-from finagent.data.schemas import RealTimeQuote
-from finagent.data.ttl import post_market_ttl
+from finagent.data.schemas import NewsData, RealTimeQuote
+from finagent.data.sources._news_common import (
+    clean_text,
+    df_to_news,
+    resolve_keywords,
+    resolve_stock_name,
+)
+from finagent.data.ttl import TTL_NEWS, post_market_ttl
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +273,53 @@ class SinaAdapter(DataProvider):
         return None
 
     def get_news(self, code, limit=20):
-        return None
+        """新浪全球财经快讯备源（stock_info_global_sina），按关键词过滤。
+
+        新浪快讯无按代码过滤参数，拉取全量快讯后按「股票简称 + 代码」过滤，
+        命中即作为该股相关新闻返回；未命中/失败返回 None 走降级链。
+        """
+        table = "news_sina"
+        key = {"code": code}
+
+        cached = self._cache.get(table, key, TTL_NEWS)
+        if cached is not None and not cached.empty:
+            return df_to_news(code, cached, limit, self.name)
+
+        try:
+            import akshare as ak
+
+            raw = ak.stock_info_global_sina()
+        except Exception:  # noqa: BLE001 — 源失败返回 None 走降级链
+            logger.warning("sina get_news stock_info_global_sina(%s) failed", code)
+            return None
+
+        if raw is None or raw.empty:
+            return None
+
+        name = resolve_stock_name(code)
+        keywords = resolve_keywords(code, name)
+
+        rows: list[dict] = []
+        for _, r in raw.iterrows():
+            content = clean_text(r.get("内容") or "")
+            if not any(kw in content for kw in keywords):
+                continue
+            rows.append({
+                "code": code,
+                "title": content[:60],
+                "publish_time": str(r.get("时间") or ""),
+                "source_name": "新浪财经",
+                "content": content,
+            })
+            if len(rows) >= limit:
+                break
+
+        if not rows:
+            return None
+
+        df = pd.DataFrame(rows)
+        self._cache.put(table, key, df)
+        return df_to_news(code, df, limit, self.name)
 
     def get_announcements(self, code, limit=20):
         return None

@@ -176,9 +176,36 @@ Web 也提供 `GET /cache-stats` 接口返回同样的统计。
 | 股东户数 (holder) | 1 天 | 每日更新 |
 | 北向资金 (north) | 1 天 | 每日盘后更新 |
 | 行业PE分位 (pe_percentile) | 1 天 | 每日更新 |
+| 大宗交易 (dazong) | 1 天 | 每日盘后更新 |
+| 前瞻事件 (future_events) | 1 天 | 每日盘后更新 |
 
 资金流柱状图：`capital_flow_eastmoney` 表统一缓存逐日序列（每只股票 ~120 个交易日），
 确保柱状图有足够数据点（原旧缓存仅 2 个聚合点）。
+
+### 数据源超时配置表
+
+数据拉取墙钟超时统一在 `finagent/data/timeout.py`（阶段Ⅲ 超时差异化）。此前所有
+数据类型统一 30s，导致财务/历史K线等重数据在接近 30s 时被误判超时失败。现在按
+数据类型差异化（未登记类型默认 60s）：
+
+| 数据种类 | 超时 | 理由 |
+|---------|------|------|
+| 实时行情/快照/资金流/ST标记 | 30s | 实时数据要求快速降级（原值保持） |
+| 日K线 (kline) | 60s | 历史K线数据量较大 |
+| 新闻/公告 (news/announcements) | 60s | 聚合接口中等耗时 |
+| 财务指标 (financials) | 90s | 季报接口慢，原 30s 偏紧 |
+| 估值 (valuation) | 90s | 含分红送配等多接口 |
+| 融资融券 (margin) | 90s | SSE 接口慢 |
+| 大宗/龙虎榜/北向/前瞻事件 (lhb/jiejin/north/dazong/future_events) | 90s | 全市场榜单类接口重 |
+| 未登记类型（默认） | 60s | DEFAULT_TIMEOUT 兜底 |
+
+### 前瞻事件（未来 3 个月）
+
+新增 `future_events` 数据种类，聚合个股未来 90 天内的前瞻事件（aShare 重要驱动）：
+预约披露时间（`stock_yysj_em`）、业绩预告（`stock_yjyg_em`）、股东大会（`stock_gddh_em`）、
+限售解禁（复用 jiejin）、分红除权除息日（`stock_fhps_detail_em`）。新闻舆情分析师
+prompt 已注入前瞻事件；Web 报告新增「🔮 前瞻事件」区块，`/analysis-data` 返回
+`future_events` 字段。
 
 ---
 

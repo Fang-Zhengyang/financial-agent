@@ -37,6 +37,7 @@ _PREHEAT_METHODS: list[tuple[str, str]] = [
     ("holder", "get_holder"),
     ("north", "get_north"),
     ("pe_percentile", "get_pe_percentile"),
+    ("future_events", "get_future_events"),
 ]
 
 # 预热写缓存是重操作（冷缓存拉网络 + SQLite 写），用全局锁串行化，

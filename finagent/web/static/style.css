@@ -1188,6 +1188,58 @@ code {
   color: var(--text-muted);
 }
 
+/* ── 前瞻事件列表 ─────────────────────────────────────── */
+.future-events-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fe-item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.fe-date {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.fe-type {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fe-disclosure { background: rgba(88, 166, 255, 0.16); color: #58a6ff; }
+.fe-forecast   { background: rgba(210, 153, 34, 0.16); color: #d29922; }
+.fe-meeting    { background: rgba(163, 113, 247, 0.16); color: #a371f7; }
+.fe-unlock     { background: rgba(248, 81, 73, 0.16); color: #f85149; }
+.fe-dividend   { background: rgba(63, 185, 80, 0.16); color: #3fb950; }
+.fe-other      { background: rgba(139, 148, 158, 0.16); color: #8b949e; }
+
+.fe-title {
+  color: var(--text-primary);
+}
+
+.fe-detail {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
 /* ── 报告正文文字样式增强 ─────────────────────────────── */
 .signal-word-buy {
   color: var(--red);

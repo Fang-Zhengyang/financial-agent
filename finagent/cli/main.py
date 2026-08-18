@@ -175,6 +175,7 @@ def _build_data_provider() -> Any:
     from finagent.data.fallback import FallbackDataProvider
     from finagent.data.sources.akshare_adapter import AkshareAdapter
     from finagent.data.sources.baostock_adapter import BaostockAdapter
+    from finagent.data.sources.cls_adapter import ClsNewsAdapter
     from finagent.data.sources.eastmoney_adapter import EastmoneyAdapter
     from finagent.data.sources.sina_adapter import SinaAdapter
     from finagent.data.sources.tencent_adapter import TencentAdapter
@@ -186,6 +187,7 @@ def _build_data_provider() -> Any:
         "baostock": BaostockAdapter(cache=cache),
         "sina": SinaAdapter(cache=cache),
         "tencent": TencentAdapter(cache=cache),
+        "cls": ClsNewsAdapter(cache=cache),
     }
     return FallbackDataProvider(adapters=adapters, cache=cache)
 
@@ -423,6 +425,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI 主入口，返回进程退出码。"""
+    from finagent.env_loader import load_env_file
+
+    load_env_file()  # Windows 安装版：加载项目根 .env（DEEPSEEK_API_KEY）
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 

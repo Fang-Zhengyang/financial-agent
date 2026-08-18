@@ -121,6 +121,11 @@ class DataProvider(ABC):
         """D16 大宗交易（近 30 日个股大宗交易明细）。默认 None。"""
         return None
 
+    def get_future_events(self, code: str):
+        """D17 前瞻事件（未来 3 个月：预约披露/业绩预告/股东大会/解禁/分红）。
+        默认 None。"""
+        return None
+
     @property
     @abstractmethod
     def name(self) -> str:

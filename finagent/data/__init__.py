@@ -39,6 +39,8 @@ from finagent.data.schemas import (
     DazongData,
     DazongItem,
     FinancialIndicators,
+    FutureEventItem,
+    FutureEventsData,
     HolderData,
     JiejinData,
     JiejinItem,
@@ -59,6 +61,7 @@ from finagent.data.schemas import (
 from finagent.data.sources.eastmoney_adapter import EastmoneyAdapter
 from finagent.data.sources.sina_adapter import SinaAdapter
 from finagent.data.sources.tencent_adapter import TencentAdapter
+from finagent.data.sources.cls_adapter import ClsNewsAdapter
 
 __all__ = [
     # cache
@@ -75,6 +78,7 @@ __all__ = [
     "EastmoneyAdapter",
     "SinaAdapter",
     "TencentAdapter",
+    "ClsNewsAdapter",
     # schemas
     "KlineData",
     "KlineRow",
@@ -98,4 +102,6 @@ __all__ = [
     "PEPercentileData",
     "DazongData",
     "DazongItem",
+    "FutureEventItem",
+    "FutureEventsData",
 ]
