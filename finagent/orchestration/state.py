@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any, Optional
 
+from finagent.data.format import format_field
+
 # 延迟导入以避免循环依赖（运行时才真正需要这些类型）
 # 实际类型在 steps.py 中通过 finagent.* 导入
 
@@ -206,32 +208,35 @@ class PipelineState:
                     "pct_chg", ts.get("kline", self.analysis_date),
                     "get_kline()", last.get("pct_chg"))
 
-        # 主力资金流
+        # 主力资金流（存储单位：元 → 显示：万元）
         flow = bundle.get("capital_flow") or {}
         for key, label in (("net_inflow_5d", "近5日主力净流入"),
                            ("net_inflow_20d", "近20日主力净流入")):
             if flow.get(key) is not None:
-                add(f"{label} {flow.get(key)} 万元", str(flow.get("source", "unknown")),
+                add(f"{label} {format_field(key, flow.get(key))}",
+                    str(flow.get("source", "unknown")),
                     key, ts.get("capital_flow", self.analysis_date),
                     "aggregate_capital_flow()", flow.get(key))
 
-        # 财务指标
+        # 财务指标（比率类存小数 ×100 + %；eps 存元/股不带 %）
         fin = bundle.get("financials") or {}
         for key, label in (("roe", "ROE"), ("revenue_yoy", "营收同比"),
                            ("net_profit_yoy", "净利同比"), ("gross_margin", "毛利率"),
                            ("debt_ratio", "负债率"), ("eps", "EPS")):
             if fin.get(key) is not None:
-                add(f"{label} {fin.get(key)}%", str(fin.get("source", "unknown")),
+                add(f"{label} {format_field(key, fin.get(key))}",
+                    str(fin.get("source", "unknown")),
                     key, ts.get("financials", self.analysis_date),
                     "get_financials()", fin.get(key))
 
-        # 估值
+        # 估值（pe/pb 无量纲；股息率已存百分数；市值存亿元）
         val = bundle.get("valuation") or {}
-        for key, label, suffix in (("pe", "PE", ""), ("pb", "PB", ""),
-                                   ("dividend_yield", "股息率", "%"),
-                                   ("market_cap", "总市值", " 亿元")):
+        for key, label in (("pe", "PE"), ("pb", "PB"),
+                           ("dividend_yield", "股息率"),
+                           ("market_cap", "总市值")):
             if val.get(key) is not None:
-                add(f"{label} {val.get(key)}{suffix}", str(val.get("source", "unknown")),
+                add(f"{label} {format_field(key, val.get(key))}",
+                    str(val.get("source", "unknown")),
                     key, ts.get("valuation", self.analysis_date),
                     "get_valuation()", val.get(key))
 

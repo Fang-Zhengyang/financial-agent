@@ -566,3 +566,38 @@ class TestKline250Days:
         j = resp.json()
         assert len(j["dates"]) == 120
         assert len(j["klines"]) == 120
+
+
+# ═══════════════════════════════════════════════════════════════
+# report.md 一级标题降级（h1 乱用渲染兜底）
+# ═══════════════════════════════════════════════════════════════
+
+class TestReportH1Downgrade:
+    def test_downgrades_subreport_h1_to_h2(self):
+        md = (
+            "# 远东股份（600869）\n"
+            "> 生成时间：xxx\n\n"
+            "## 一、摘要\n\n"
+            "# 远东股份（600869）新闻舆情分析报告\n"
+            "正文……\n\n"
+            "## 二、分析师分项报告\n"
+            "### 2.1 基本面分析师\n"
+            "# 基本面分析报告\n"
+        )
+        out = webapp._downgrade_h1(md)
+        lines = out.splitlines()
+        # 文件主标题（第一个 `# `）保留
+        assert lines[0] == "# 远东股份（600869）"
+        # 其余一级标题降级为 `## `（全文仅剩 1 个 `# ` 一级标题）
+        h1_lines = [ln for ln in lines if ln.startswith("# ")]
+        assert h1_lines == ["# 远东股份（600869）"]
+        assert "## 远东股份（600869）新闻舆情分析报告" in lines
+        assert "## 基本面分析报告" in lines
+
+    def test_only_title_unchanged(self):
+        md = "# 主标题\n正文内容"
+        assert webapp._downgrade_h1(md) == "# 主标题\n正文内容"
+
+    def test_h2_h3_not_touched(self):
+        md = "# 主标题\n## 二级\n### 三级"
+        assert webapp._downgrade_h1(md) == "# 主标题\n## 二级\n### 三级"

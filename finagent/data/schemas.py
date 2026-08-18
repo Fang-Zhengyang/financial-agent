@@ -51,8 +51,8 @@ class RealTimeQuote(BaseModel):
 
 class CapitalFlow(BaseModel):
     code: str
-    net_inflow_5d: float   # 近5日主力净流入（万元）
-    net_inflow_20d: float  # 近20日主力净流入（万元）
+    net_inflow_5d: float   # 近5日主力净流入（元，东财原始净额；显示 ÷10000 → 万元）
+    net_inflow_20d: float  # 近20日主力净流入（元，同上）
     super_large_order: float
     large_order: float
     medium_order: float
@@ -77,12 +77,12 @@ class MarginTrading(BaseModel):
 
 class FinancialIndicators(BaseModel):
     code: str
-    roe: float
-    revenue_yoy: float      # 营收同比 %
-    net_profit_yoy: float   # 净利同比 %
-    gross_margin: float     # 毛利率 %
-    debt_ratio: float       # 负债率 %
-    eps: float
+    roe: float              # 净资产收益率（小数，0.0139 = 1.39%；显示 ×100 + %）
+    revenue_yoy: float      # 营收同比（小数，0.0449 = 4.49%）
+    net_profit_yoy: float   # 净利同比（小数，1.13 = 113%）
+    gross_margin: float     # 毛利率（小数，0.09 = 9%）
+    debt_ratio: float       # 负债率（小数，0.80 = 80%）
+    eps: float              # 每股收益（元/股）
     net_margin: float = 0.0  # 销售净利率（小数，如 0.52 = 52%；web 层 ×100）
     source: str
     cache_time: Optional[datetime] = None

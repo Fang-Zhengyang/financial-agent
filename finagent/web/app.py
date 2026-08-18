@@ -174,11 +174,31 @@ def _find_analysis(code: str, date: str) -> Optional[Path]:
     return None
 
 
+def _downgrade_h1(md_text: str) -> str:
+    """把报告正文中除第一个一级标题外的所有 `# ` 一级标题降级为 `## `。
+
+    各角色子报告（分析师 / 多方 / 空方 / 风控官）的 LLM 输出常误用 `# `
+    一级标题（每个子报告都以「# 股票名（代码）xxx报告」开头），导致渲染后
+    全文多个 <h1>、标题层级混乱、内容视觉割裂。文件首行是整份报告主标题，
+    予以保留，其余一律降级为 `## `。属于渲染兜底，不依赖 prompt 是否遵守。
+    """
+    lines = md_text.split("\n")
+    seen_title = False
+    for i, line in enumerate(lines):
+        if not line.startswith("# "):
+            continue
+        if not seen_title:
+            seen_title = True  # 保留第一个一级标题（文件主标题）
+            continue
+        lines[i] = "## " + line[2:]
+    return "\n".join(lines)
+
+
 def _read_report_md(analysis_dir: Path) -> str:
-    """读取 report.md 内容。"""
+    """读取 report.md 内容（一级标题降级后再返回，供前端稳定渲染）。"""
     report_path = analysis_dir / "report.md"
     if report_path.exists():
-        return report_path.read_text(encoding="utf-8")
+        return _downgrade_h1(report_path.read_text(encoding="utf-8"))
     return ""
 
 
